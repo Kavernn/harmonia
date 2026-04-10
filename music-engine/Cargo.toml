@@ -1,0 +1,9 @@
+[package]
+name = "music-engine"
+version = "0.1.0"
+edition = "2021"
+description = "Core musical intelligence for Riff Composer"
+
+[lib]
+name = "music_engine"
+path = "src/lib.rs"
