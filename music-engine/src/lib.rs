@@ -3,3 +3,4 @@
 
 pub mod core;
 pub mod harmony;
+pub mod analysis;
