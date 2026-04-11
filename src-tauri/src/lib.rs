@@ -2,7 +2,8 @@ use music_engine::api::{
   note, build_chord, analyze_chord, diatonic_chords,
   build_progression, common_progressions,
   solo_notes_for_chord,
-  fret_positions, tuning_standard,
+  fret_positions, tuning_standard, tuning_custom,
+  beat_pattern, common_beat_patterns, BeatFeel, BeatStyle,
   ChordQuality, ConfidenceLevel,
 };
 use music_engine::harmony::scale::{
@@ -69,6 +70,23 @@ pub struct FretPositionDto {
     pub is_avoid: bool,   // ← nouveau
 }
 
+#[derive(Serialize)]
+pub struct BeatStepEventDto {
+    pub step: u8,
+    pub voice: String,
+    pub velocity: u8,
+}
+
+#[derive(Serialize)]
+pub struct BeatPatternDto {
+    pub name: String,
+    pub style: String,
+    pub style_id: String,
+    pub steps_per_bar: u8,
+    pub swing: u8,
+    pub events: Vec<BeatStepEventDto>,
+}
+
 // --- Requests ---
 
 #[derive(Deserialize)]
@@ -97,6 +115,20 @@ pub struct FretboardRequest {
   pub scale_name: String,
   pub chord_degree: usize,
   pub max_fret: Option<u8>,
+  pub tuning_notes: Option<Vec<u8>>,
+}
+
+fn request_tuning(notes: &Option<Vec<u8>>) -> Result<music_engine::api::Tuning, String> {
+    let notes = match notes {
+        Some(notes) => notes,
+        None => return Ok(tuning_standard()),
+    };
+
+    if !(6..=8).contains(&notes.len()) {
+        return Err(format!("Unsupported string count: {}", notes.len()));
+    }
+
+    Ok(tuning_custom(notes.clone()))
 }
 
 // --- Helpers ---
@@ -134,6 +166,42 @@ fn make_scale(root: PitchClass, name: &str) -> Result<music_engine::harmony::sca
       "Pentatonic Minor" => Ok(pentatonic_minor_scale(root)),
       "Blues"            => Ok(blues_scale(root)),
       other              => Err(format!("Unknown scale: {}", other)),
+  }
+}
+
+fn parse_beat_style(s: &str) -> Result<BeatStyle, String> {
+  match s {
+      "rock" => Ok(BeatStyle::Rock),
+      "boom_bap" => Ok(BeatStyle::BoomBap),
+      "four_on_the_floor" => Ok(BeatStyle::FourOnTheFloor),
+      "trap" => Ok(BeatStyle::Trap),
+      "half_time" => Ok(BeatStyle::HalfTime),
+      other => Err(format!("Unknown beat style: {}", other)),
+  }
+}
+
+fn beat_style_id(style: BeatStyle) -> String {
+  match style {
+      BeatStyle::Rock => "rock",
+      BeatStyle::BoomBap => "boom_bap",
+      BeatStyle::FourOnTheFloor => "four_on_the_floor",
+      BeatStyle::Trap => "trap",
+      BeatStyle::HalfTime => "half_time",
+  }.to_string()
+}
+
+fn beat_pattern_dto(pattern: music_engine::api::BeatPattern) -> BeatPatternDto {
+  BeatPatternDto {
+      name: pattern.name.to_string(),
+      style: pattern.style.label().to_string(),
+      style_id: beat_style_id(pattern.style),
+      steps_per_bar: pattern.steps_per_bar,
+      swing: pattern.swing,
+      events: pattern.events.into_iter().map(|event| BeatStepEventDto {
+          step: event.step,
+          voice: event.voice.label().to_string(),
+          velocity: event.velocity,
+      }).collect(),
   }
 }
 
@@ -188,6 +256,21 @@ fn common_progressions_command() -> Vec<NamedProgressionDto> {
 }
 
 #[tauri::command]
+fn common_beat_patterns_command() -> Vec<BeatPatternDto> {
+  common_beat_patterns().into_iter().map(beat_pattern_dto).collect()
+}
+
+#[tauri::command]
+fn beat_pattern_command(request: BeatPatternRequest) -> Result<BeatPatternDto, String> {
+  let style = parse_beat_style(&request.style)?;
+  let feel = BeatFeel {
+      intensity: request.intensity.unwrap_or(100),
+      swing: request.swing.unwrap_or(0),
+  };
+  Ok(beat_pattern_dto(beat_pattern(style, feel)))
+}
+
+#[tauri::command]
 fn build_progression_command(request: BuildProgressionRequest) -> Result<Vec<ProgressionChordDto>, String> {
   let root = PitchClass::new(request.scale_root);
   let scale = make_scale(root, &request.scale_name)?;
@@ -218,7 +301,7 @@ fn fretboard_command(request: FretboardRequest) -> Result<Vec<FretPositionDto>, 
 
   let pc = &progression[0];
   let solo = solo_notes_for_chord(&pc.chord, &scale);
-  let tuning = tuning_standard();
+  let tuning = request_tuning(&request.tuning_notes)?;
   let max_fret = request.max_fret.unwrap_or(12);
   let positions = fret_positions(&tuning, &solo.chord_tones, &solo.scale_tones, max_fret);
 
@@ -237,13 +320,21 @@ pub struct ScaleFretboardRequest {
     pub scale_root: u8,
     pub scale_name: String,
     pub max_fret: Option<u8>,
+    pub tuning_notes: Option<Vec<u8>>,
+}
+
+#[derive(Deserialize)]
+pub struct BeatPatternRequest {
+    pub style: String,
+    pub intensity: Option<u8>,
+    pub swing: Option<u8>,
 }
 
 #[tauri::command]
 fn scale_fretboard_command(request: ScaleFretboardRequest) -> Result<Vec<FretPositionDto>, String> {
     let root = PitchClass::new(request.scale_root);
     let scale = make_scale(root, &request.scale_name)?;
-    let tuning = tuning_standard();
+    let tuning = request_tuning(&request.tuning_notes)?;
     let max_fret = request.max_fret.unwrap_or(24);
     let scale_pcs = scale.pitch_classes();
 
@@ -255,7 +346,7 @@ fn scale_fretboard_command(request: ScaleFretboardRequest) -> Result<Vec<FretPos
         .collect();
 
     // Notes de la scale
-    let mut positions = fret_positions(&tuning, &[], &scale_pcs, max_fret);
+    let positions = fret_positions(&tuning, &[], &scale_pcs, max_fret);
     // Notes à éviter
     let avoid_positions = fret_positions(&tuning, &[], &avoid_pcs, max_fret);
 
@@ -302,6 +393,8 @@ pub fn run() {
           analyze_chord_command,
           diatonic_chords_command,
           common_progressions_command,
+          common_beat_patterns_command,
+          beat_pattern_command,
           build_progression_command,
           fretboard_command,
           scale_fretboard_command,

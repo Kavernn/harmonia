@@ -1,5 +1,4 @@
 use crate::core::intervals::{MINOR_THIRD, MAJOR_THIRD, PERFECT_FIFTH, TRITONE};
-use crate::core::notes::PitchClass;
 use crate::harmony::chord::Chord;
 use crate::harmony::scale::Scale;
 
@@ -96,6 +95,7 @@ pub fn diatonic_chords(scale: &Scale) -> Vec<DiatonicChord> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::notes::PitchClass;
     use crate::harmony::scale::{major_scale, natural_minor_scale};
 
     fn c() -> PitchClass { PitchClass::new(0) }

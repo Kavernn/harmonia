@@ -28,7 +28,7 @@ pub fn common_progressions() -> Vec<NamedProgression> {
         NamedProgression { name: "ii – V – I",         degrees: vec![1, 4, 0],    feel: "Jazz cadence" },
         NamedProgression { name: "I – IV – vi – V",    degrees: vec![0, 3, 5, 4], feel: "Melodic rock" },
         NamedProgression { name: "vi – IV – I – V",    degrees: vec![5, 3, 0, 4], feel: "Minor feel / emotional" },
-        NamedProgression { name: "I – III – IV – iv",  degrees: vec![0, 2, 3, 3], feel: "Classic minor turn" },
+        NamedProgression { name: "I – iii – IV – V",   degrees: vec![0, 2, 3, 4], feel: "Lift / pre-chorus" },
         NamedProgression { name: "i – VII – VI – VII", degrees: vec![0, 6, 5, 6], feel: "Heavy / Aeolian" },
         NamedProgression { name: "I – IV – I – V",     degrees: vec![0, 3, 0, 4], feel: "12-bar blues core" },
     ]

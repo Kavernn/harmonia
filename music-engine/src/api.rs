@@ -7,12 +7,10 @@
 
 use crate::core::notes::PitchClass;
 use crate::harmony::chord::{
-    Chord,
     major_chord, minor_chord, power_chord,
     diminished_chord, sus2_chord, sus4_chord,
 };
-use crate::analysis::compatibility::Confidence;
-use crate::analysis::suggestion::{ScaleSuggestion, suggest_scales};
+use crate::analysis::suggestion::suggest_scales;
 
 // --- Types re-exportés pour que le frontend n'ait pas à importer les sous-modules ---
 
@@ -25,7 +23,8 @@ pub use crate::progression::diatonic::{diatonic_chords, DiatonicChord, DiatonicQ
 pub use crate::progression::builder::{build_progression, common_progressions, NamedProgression, ProgressionChord};
 pub use crate::progression::solo::{solo_notes_for_chord, solo_notes_for_progression, SoloNotes};
 pub use crate::riff::fretboard::{fret_positions, FretPosition};
-pub use crate::core::tuning::{standard as tuning_standard, drop_d, open_g, Tuning};
+pub use crate::core::tuning::{standard as tuning_standard, standard_7 as tuning_standard_7, drop_d, open_g, custom as tuning_custom, Tuning};
+pub use crate::rhythm::{beat_pattern, common_beat_patterns, BeatFeel, BeatPattern, BeatStyle, DrumVoice, StepEvent};
 
 // --- Constructeurs de notes ---
 

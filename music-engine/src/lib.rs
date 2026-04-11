@@ -6,4 +6,5 @@ pub mod harmony;
 pub mod analysis;
 pub mod progression;
 pub mod riff;
+pub mod rhythm;
 pub mod api;
