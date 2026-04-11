@@ -43,16 +43,37 @@ impl Scale {
 
         let new_root = pcs[degree];
 
-        // Reconstruit les intervalles depuis la nouvelle root
         let intervals: Vec<Interval> = (1..len)
             .map(|i| new_root.interval_to(pcs[(degree + i) % len]))
             .collect();
 
-        Scale {
-            root: new_root,
-            name: "mode", // le nom du mode est une question d'affichage
-            intervals,
+        let name = self.mode_name(degree);
+
+        Scale { root: new_root, name, intervals }
+    }
+
+    /// Nom du mode à un degré donné — affichage uniquement.
+    /// Seule la gamme majeure a des noms de modes standards.
+    pub fn mode_name(&self, degree: usize) -> &'static str {
+        match self.name {
+            "Major" => match degree {
+                0 => "Ionian",
+                1 => "Dorian",
+                2 => "Phrygian",
+                3 => "Lydian",
+                4 => "Mixolydian",
+                5 => "Aeolian",
+                6 => "Locrian",
+                _ => "Unknown",
+            },
+            _ => self.name,
         }
+    }
+
+    /// Quel degré de cette scale correspond à une root donnée?
+    /// Retourne None si la root n'est pas dans la scale.
+    pub fn degree_of(&self, root: PitchClass) -> Option<usize> {
+        self.pitch_classes().iter().position(|&pc| pc == root)
     }
 }
 
@@ -156,16 +177,16 @@ mod tests {
 
     #[test]
     fn c_major_mode_1_is_dorian_root_d() {
-        // Mode 1 de C major = D Dorian
         let dorian = major_scale(c()).mode(1);
         assert_eq!(dorian.root.name(), "D");
+        assert_eq!(dorian.name, "Dorian");
     }
 
     #[test]
     fn c_major_mode_5_is_aeolian_root_a() {
-        // Mode 5 de C major = A Aeolian (mineur naturel)
         let aeolian = major_scale(c()).mode(5);
         assert_eq!(aeolian.root.name(), "A");
+        assert_eq!(aeolian.name, "Aeolian");
     }
 
     #[test]
@@ -173,5 +194,13 @@ mod tests {
         let aeolian = major_scale(c()).mode(5);
         let a_minor = natural_minor_scale(PitchClass::new(9));
         assert_eq!(aeolian.pitch_classes(), a_minor.pitch_classes());
+    }
+
+    #[test]
+    fn degree_of_finds_correct_position() {
+        let scale = major_scale(c());
+        assert_eq!(scale.degree_of(PitchClass::new(0)), Some(0)); // C = degree 0
+        assert_eq!(scale.degree_of(PitchClass::new(9)), Some(5)); // A = degree 5
+        assert_eq!(scale.degree_of(PitchClass::new(6)), None);    // F# pas dans C major
     }
 }

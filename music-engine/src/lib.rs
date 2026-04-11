@@ -4,3 +4,6 @@
 pub mod core;
 pub mod harmony;
 pub mod analysis;
+pub mod progression;
+pub mod riff;
+pub mod api;

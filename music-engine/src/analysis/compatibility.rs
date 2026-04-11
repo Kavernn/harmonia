@@ -97,10 +97,10 @@ mod tests {
     }
 
     #[test]
-    fn c_minor_chord_in_c_major_scale_is_low() {
-        // Eb n'est pas dans C major
+    fn c_minor_chord_in_c_major_scale_is_medium() {
+        // Eb n'est pas dans C major → 1 note dehors = Medium (tension)
         let result = chord_scale_compatibility(&minor_chord(c()), &major_scale(c()));
-        assert_eq!(result.confidence, Confidence::Low);
+        assert_eq!(result.confidence, Confidence::Medium);
         assert!(!result.is_compatible());
     }
 
@@ -134,11 +134,11 @@ mod tests {
     }
 
     #[test]
-    fn diminished_in_c_major_is_medium_or_low() {
-        // B dim (B D F) — F# attendu, F hors scale → low
+    fn b_diminished_in_c_major_is_high() {
+        // B dim = B D F — tous diatoniques à C major → High
         let b = PitchClass::new(11);
         let result = chord_scale_compatibility(&diminished_chord(b), &major_scale(c()));
-        assert!(result.confidence <= Confidence::Medium);
+        assert_eq!(result.confidence, Confidence::High);
     }
 
     #[test]

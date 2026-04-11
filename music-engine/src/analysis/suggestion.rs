@@ -6,11 +6,22 @@ use crate::harmony::scale::{
 };
 use crate::analysis::compatibility::{chord_scale_compatibility, Confidence, CompatibilityResult};
 
+/// Le mode détecté pour un accord dans une scale donnée.
+/// Ex: Am dans C major → Aeolian (degree 5)
+#[derive(Debug, Clone)]
+pub struct DetectedMode {
+    pub name: &'static str,
+    pub degree: usize,
+    pub root: PitchClass,
+}
+
 /// Une suggestion de scale pour un accord donné.
 #[derive(Debug, Clone)]
 pub struct ScaleSuggestion {
     pub scale: Scale,
     pub compatibility: CompatibilityResult,
+    /// Mode détecté si la root de l'accord est dans la scale
+    pub mode: Option<DetectedMode>,
 }
 
 impl ScaleSuggestion {
@@ -35,21 +46,29 @@ fn candidate_scales(root: PitchClass) -> Vec<Scale> {
     ]
 }
 
+/// Détecte le mode joué par un accord dans une scale.
+/// Basé sur la root de l'accord — si elle est dans la scale,
+/// on retourne le mode correspondant à ce degré.
+fn detect_mode(chord: &Chord, scale: &Scale) -> Option<DetectedMode> {
+    let degree = scale.degree_of(chord.root)?;
+    let name = scale.mode_name(degree);
+    Some(DetectedMode { name, degree, root: chord.root })
+}
+
 /// Suggère des scales compatibles avec un accord donné.
 /// Retourne les résultats triés par confiance décroissante.
-/// Filtre en dessous du seuil minimum de confiance.
 pub fn suggest_scales(chord: &Chord, min_confidence: Confidence) -> Vec<ScaleSuggestion> {
     let mut suggestions: Vec<ScaleSuggestion> = all_roots()
         .into_iter()
         .flat_map(|root| candidate_scales(root))
         .map(|scale| {
             let compatibility = chord_scale_compatibility(chord, &scale);
-            ScaleSuggestion { scale, compatibility }
+            let mode = detect_mode(chord, &scale);
+            ScaleSuggestion { scale, compatibility, mode }
         })
         .filter(|s| s.compatibility.confidence >= min_confidence)
         .collect();
 
-    // Tri : High en premier, puis Medium, puis Low
     suggestions.sort_by(|a, b| b.confidence().cmp(a.confidence()));
     suggestions
 }
@@ -91,7 +110,6 @@ mod tests {
 
     #[test]
     fn power_chord_has_multiple_high_suggestions() {
-        // Ambigu → compatible avec plus de scales
         let suggestions = suggest_scales_high(&power_chord(c()));
         assert!(suggestions.len() > 3);
     }
@@ -118,5 +136,28 @@ mod tests {
             s.scale.name == "Major" && s.scale.root == c()
         });
         assert!(!has_c_major);
+    }
+
+    #[test]
+    fn a_minor_in_c_major_detects_aeolian_mode() {
+        let suggestions = suggest_scales_high(&minor_chord(a()));
+        let c_major_suggestion = suggestions.iter().find(|s| {
+            s.scale.name == "Major" && s.scale.root == c()
+        });
+        assert!(c_major_suggestion.is_some());
+        let mode = c_major_suggestion.unwrap().mode.as_ref().unwrap();
+        assert_eq!(mode.name, "Aeolian");
+        assert_eq!(mode.degree, 5);
+    }
+
+    #[test]
+    fn c_major_in_c_major_detects_ionian_mode() {
+        let suggestions = suggest_scales_high(&major_chord(c()));
+        let c_major_suggestion = suggestions.iter().find(|s| {
+            s.scale.name == "Major" && s.scale.root == c()
+        });
+        let mode = c_major_suggestion.unwrap().mode.as_ref().unwrap();
+        assert_eq!(mode.name, "Ionian");
+        assert_eq!(mode.degree, 0);
     }
 }
