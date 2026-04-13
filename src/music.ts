@@ -4,14 +4,36 @@ export interface ScaleSuggestion {
   confidence: "high" | "medium" | "low";
   matching_notes: string[];
   outside_notes: string[];
+  reason: string;
   notes: string[];
+  characteristic_notes: string[];
+  modal_avoid_notes: string[];
+  resolution_notes: string[];
+  guidance: string;
   mode: { name: string; degree: number; root: string } | null;
+  matching_chords?: number;
+  total_chords?: number;
+}
+
+export interface CompatibleMode {
+  scale_name: string;
+  scale_root: string;
+  notes: string[];
+  characteristic_notes: string[];
+  modal_avoid_notes: string[];
+  resolution_notes: string[];
+  guidance: string;
 }
 
 export interface NamedProgression {
   name: string;
-  degrees: number[];
+  steps: string[];
   feel: string;
+}
+
+export interface ProgressionStepOption {
+  token: string;
+  family: "diatonic" | "borrowed" | "secondary_dominant" | string;
 }
 
 export interface ProgressionChord {
@@ -19,8 +41,15 @@ export interface ProgressionChord {
   roman: string;
   display_name: string;
   quality: string;
+  harmonic_role: "diatonic" | "borrowed" | "secondary_dominant" | string;
+  target_step?: string | null;
+  target_note?: string | null;
+  outside_harmony_tones: string[];
   chord_tones: string[];
   scale_tones: string[];
+  modal_focus_tones: string[];
+  modal_release_tones: string[];
+  modal_advice: string;
 }
 
 export interface FretPosition {
@@ -30,10 +59,14 @@ export interface FretPosition {
   is_chord_tone: boolean;
   is_root?: boolean;
   is_avoid?: boolean;
+  is_characteristic?: boolean;
+  is_modal_avoid?: boolean;
+  is_resolution?: boolean;
 }
 
 export type NoteValueId = "whole" | "half" | "quarter" | "eighth" | "sixteenth";
 export type StrumStyleId = "smooth" | "straight" | "arpeggio";
+export type AccompanimentToneId = "acoustic" | "synth";
 
 export interface TuningPreset {
   id: string;
@@ -66,6 +99,17 @@ export const QUALITIES = [
   { id: "sus2", label: "Sus2", intervals: "R 2 5" },
   { id: "sus4", label: "Sus4", intervals: "R 4 5" },
 ] as const;
+export const HARMONY_SCALES = [
+  { id: "Ionian", label: "Ionian", detail: "majeur stable / centre tonal clair" },
+  { id: "Dorian", label: "Dorian", detail: "mineur lumineux / 6 majeure" },
+  { id: "Phrygian", label: "Phrygien", detail: "mineur tendu / 2 mineure" },
+  { id: "Lydian", label: "Lydian", detail: "majeur ouvert / #4 caracteristique" },
+  { id: "Mixolydian", label: "Mixolydien", detail: "dominant / 7 mineure" },
+  { id: "Aeolian", label: "Aeolian", detail: "mineur naturel / centre tonal mineur" },
+  { id: "Locrian", label: "Locrian", detail: "instable / quinte diminuee" },
+  { id: "Harmonic Minor", label: "Mineur harmonique", detail: "dominante majeure / couleur classique" },
+  { id: "Melodic Minor", label: "Mineur mélodique", detail: "mineur jazz / tension plus lisse" },
+] as const;
 export const ROMAN = ["I","II","III","IV","V","VI","VII"];
 export const NOTE_VALUES: { id: NoteValueId; label: string; short: string; symbol: string; quarters: number }[] = [
   { id: "whole", label: "Ronde", short: "ronde", symbol: "◯", quarters: 4 },
@@ -78,6 +122,10 @@ export const STRUM_STYLES: { id: StrumStyleId; label: string; spreadMs: number; 
   { id: "smooth", label: "Smooth", spreadMs: 22, velocityDrop: 0.05 },
   { id: "straight", label: "Straight", spreadMs: 14, velocityDrop: 0.08 },
   { id: "arpeggio", label: "Arpeggio", spreadMs: 40, velocityDrop: 0.03 },
+];
+export const ACCOMPANIMENT_TONES: { id: AccompanimentToneId; label: string; detail: string }[] = [
+  { id: "acoustic", label: "Acoustique", detail: "guitare samplee" },
+  { id: "synth", label: "Synth pad", detail: "plus doux pour improviser" },
 ];
 
 const STANDARD_6 = ["E", "A", "D", "G", "B", "E"];
@@ -107,6 +155,71 @@ export const DEFAULT_BEAT_VELOCITY: Record<string, number> = {
 
 export function noteValue(id: NoteValueId) {
   return NOTE_VALUES.find((value) => value.id === id) ?? NOTE_VALUES[2];
+}
+
+export function canonicalScaleName(scaleName: string) {
+  switch (scaleName) {
+    case "Major":
+      return "Ionian";
+    case "Natural Minor":
+      return "Aeolian";
+    default:
+      return scaleName;
+  }
+}
+
+export function diatonicProgressionStepsForHarmony(scaleName: string) {
+  switch (canonicalScaleName(scaleName)) {
+    case "Dorian":
+      return ["i", "ii", "III", "IV", "v", "vi°", "VII"];
+    case "Phrygian":
+      return ["i", "II", "III", "iv", "v°", "VI", "vii"];
+    case "Lydian":
+      return ["I", "II", "iii", "iv°", "V", "vi", "vii"];
+    case "Mixolydian":
+      return ["I", "ii", "iii°", "IV", "v", "vi", "VII"];
+    case "Aeolian":
+      return ["i", "ii°", "III", "iv", "v", "VI", "VII"];
+    case "Locrian":
+      return ["i°", "II", "iii", "iv", "V", "VI", "vii"];
+    case "Harmonic Minor":
+      return ["i", "ii°", "III+", "iv", "V", "VI", "vii°"];
+    case "Melodic Minor":
+      return ["i", "ii", "III+", "IV", "V", "vi°", "vii°"];
+    case "Ionian":
+    default:
+      return ["I", "ii", "iii", "IV", "V", "vi", "vii°"];
+  }
+}
+
+export function defaultProgressionStepsForHarmony(scaleName: string) {
+  switch (canonicalScaleName(scaleName)) {
+    case "Dorian":
+      return ["i", "IV", "i", "IV"];
+    case "Phrygian":
+      return ["i", "II", "i", "VII"];
+    case "Lydian":
+      return ["I", "II", "V", "I"];
+    case "Mixolydian":
+      return ["I", "VII", "IV", "I"];
+    case "Aeolian":
+      return ["i", "VII", "VI", "VII"];
+    case "Locrian":
+      return ["i°", "II", "V", "i°"];
+    case "Harmonic Minor":
+    case "Melodic Minor":
+      return ["i", "iv", "V", "i"];
+    case "Ionian":
+    default:
+      return ["I", "IV", "V", "I"];
+  }
+}
+
+export function fallbackProgressionStepOptionsForHarmony(scaleName: string): ProgressionStepOption[] {
+  return diatonicProgressionStepsForHarmony(scaleName).map((token) => ({
+    token,
+    family: "diatonic",
+  }));
 }
 
 export function transposeNoteName(note: string, semitones: number) {

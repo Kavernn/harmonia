@@ -1,5 +1,5 @@
-use crate::harmony::{chord::Chord, scale::Scale};
 use crate::core::notes::PitchClass;
+use crate::harmony::{chord::Chord, scale::Scale};
 
 /// Niveau de confiance d'une compatibilité musicale.
 /// Toujours expliqué — jamais une boîte noire.
@@ -13,9 +13,9 @@ pub enum Confidence {
 impl Confidence {
     pub fn label(&self) -> &'static str {
         match self {
-            Confidence::Low    => "low",
+            Confidence::Low => "low",
             Confidence::Medium => "medium",
-            Confidence::High   => "high",
+            Confidence::High => "high",
         }
     }
 }
@@ -51,12 +51,14 @@ pub fn chord_scale_compatibility(chord: &Chord, scale: &Scale) -> CompatibilityR
     let chord_pcs = chord.pitch_classes();
     let scale_pcs = scale.pitch_classes();
 
-    let matching_notes: Vec<PitchClass> = chord_pcs.iter()
+    let matching_notes: Vec<PitchClass> = chord_pcs
+        .iter()
         .copied()
         .filter(|pc| scale_pcs.contains(pc))
         .collect();
 
-    let outside_notes: Vec<PitchClass> = chord_pcs.iter()
+    let outside_notes: Vec<PitchClass> = chord_pcs
+        .iter()
         .copied()
         .filter(|pc| !scale_pcs.contains(pc))
         .collect();
@@ -66,7 +68,10 @@ pub fn chord_scale_compatibility(chord: &Chord, scale: &Scale) -> CompatibilityR
     let (confidence, reason) = if outside_count == 0 {
         (Confidence::High, "All chord tones are in the scale")
     } else if outside_count == 1 {
-        (Confidence::Medium, "One chord tone outside the scale — creates tension")
+        (
+            Confidence::Medium,
+            "One chord tone outside the scale — creates tension",
+        )
     } else {
         (Confidence::Low, "Multiple chord tones outside the scale")
     };
@@ -83,11 +88,15 @@ pub fn chord_scale_compatibility(chord: &Chord, scale: &Scale) -> CompatibilityR
 mod tests {
     use super::*;
     use crate::core::notes::PitchClass;
-    use crate::harmony::chord::{major_chord, minor_chord, power_chord, diminished_chord};
+    use crate::harmony::chord::{diminished_chord, major_chord, minor_chord, power_chord};
     use crate::harmony::scale::{major_scale, natural_minor_scale};
 
-    fn c() -> PitchClass { PitchClass::new(0) }
-    fn a() -> PitchClass { PitchClass::new(9) }
+    fn c() -> PitchClass {
+        PitchClass::new(0)
+    }
+    fn a() -> PitchClass {
+        PitchClass::new(9)
+    }
 
     #[test]
     fn c_major_chord_in_c_major_scale_is_high() {

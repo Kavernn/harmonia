@@ -1,4 +1,4 @@
-import { ROMAN, type ScaleSuggestion } from "../music";
+import { ROMAN, canonicalScaleName, type CompatibleMode, type ScaleSuggestion } from "../music";
 
 function Badge({ level }: { level: string }) {
   const tones: Record<string, [string, string]> = {
@@ -16,51 +16,142 @@ function Badge({ level }: { level: string }) {
 }
 
 interface ScaleSuggestionsPanelProps {
-  rootName: string;
-  qualityLabel: string;
+  harmonyRootName: string;
+  harmonyScaleName: string;
   scales: ScaleSuggestion[];
   selectedScale: ScaleSuggestion | null;
+  compatibleModes: CompatibleMode[];
   loading: boolean;
   error: string | null;
   onSelectScale: (scale: ScaleSuggestion) => void;
+  onSelectCompatibleMode: (scaleRoot: string, scaleName: string) => void;
 }
 
 export function ScaleSuggestionsPanel({
-  rootName,
-  qualityLabel,
+  harmonyRootName,
+  harmonyScaleName,
   scales,
   selectedScale,
+  compatibleModes,
   loading,
   error,
   onSelectScale,
+  onSelectCompatibleMode,
 }: ScaleSuggestionsPanelProps) {
+  const highlightedScale = selectedScale ?? scales[0] ?? null;
+
   return (
     <>
       <div style={{ paddingBottom: 16, borderBottom: "0.5px solid var(--color-border-tertiary)" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
           <span style={{ fontSize: 28, fontWeight: 500, color: "var(--color-text-primary)" }}>
-            {rootName} {qualityLabel}
+            {harmonyRootName} {harmonyScaleName}
           </span>
-          {scales.length > 0 && (
-            <span style={{ fontSize: 13, color: "var(--color-text-tertiary)" }}>
-              {scales[0].matching_notes.join(" · ")}
-            </span>
-          )}
+          <span style={{ fontSize: 13, color: "var(--color-text-tertiary)" }}>
+            harmonie de la grille
+          </span>
         </div>
-        {loading && <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginTop: 4 }}>Analyzing…</div>}
+        {highlightedScale && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 8 }}>
+            <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+              Palette solo active: {highlightedScale.scale_root} {highlightedScale.scale_name}
+            </div>
+            <span style={{ fontSize: 13, color: "var(--color-text-tertiary)" }}>
+              {highlightedScale.reason}
+            </span>
+            <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+              Notes communes avec la grille: {highlightedScale.matching_notes.join(" · ") || "aucune"}
+            </div>
+            {highlightedScale.characteristic_notes.length > 0 && (
+              <div style={{ fontSize: 12, color: "#0B6F89" }}>
+                Signature modale: {highlightedScale.characteristic_notes.join(" · ")}
+                {highlightedScale.modal_avoid_notes.length > 0 ? ` · avoid: ${highlightedScale.modal_avoid_notes.join(" · ")}` : ""}
+              </div>
+            )}
+            {highlightedScale.resolution_notes.length > 0 && (
+              <div style={{ fontSize: 12, color: "#185FA5" }}>
+                Résolutions: {highlightedScale.resolution_notes.join(" · ")}
+              </div>
+            )}
+            {typeof highlightedScale.matching_chords === "number" && typeof highlightedScale.total_chords === "number" && (
+              <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>
+                Accords couverts sans friction: {highlightedScale.matching_chords}/{highlightedScale.total_chords}
+              </div>
+            )}
+            {highlightedScale.outside_notes.length > 0 && (
+              <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>
+                Notes couleur a gerer: {highlightedScale.outside_notes.join(" · ")}
+              </div>
+            )}
+            {highlightedScale.mode && (
+              <div style={{ fontSize: 12, color: "#534AB7" }}>
+                Lecture modale: {highlightedScale.mode.name} depuis {ROMAN[highlightedScale.mode.degree]}
+              </div>
+            )}
+          </div>
+        )}
+        {loading && <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginTop: 4 }}>Analyse en cours…</div>}
         {error && <div style={{ fontSize: 12, color: "#993C1D", marginTop: 4 }}>{error}</div>}
       </div>
+
+      {compatibleModes.length > 1 && (
+        <div style={{
+          padding: "14px 0 16px",
+          borderBottom: "0.5px solid var(--color-border-tertiary)",
+        }}>
+          <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 8 }}>
+            Modes compatibles avec {harmonyRootName} {harmonyScaleName}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 10 }}>
+            Même famille de notes, autre centre modal. Tu peux passer directement sur un mode relatif majeur, harmonique mineur ou mélodique mineur selon la couleur que tu veux entendre.
+          </div>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {compatibleModes.map((mode) => {
+              const selected =
+                selectedScale?.scale_root === mode.scale_root
+                && canonicalScaleName(selectedScale?.scale_name ?? "") === canonicalScaleName(mode.scale_name);
+
+              return (
+                <button
+                  key={`${mode.scale_root}-${mode.scale_name}`}
+                  onClick={() => onSelectCompatibleMode(mode.scale_root, mode.scale_name)}
+                  style={{
+                    border: selected ? "1.5px solid #534AB7" : "0.5px solid var(--color-border-tertiary)",
+                    background: selected ? "#EEEDFE" : "var(--color-background-primary)",
+                    color: selected ? "#3C3489" : "var(--color-text-secondary)",
+                    borderRadius: "var(--border-radius-md)",
+                    padding: "7px 10px",
+                    cursor: "pointer",
+                    textAlign: "left",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 3,
+                  }}
+                  title={mode.notes.join(" · ")}
+                >
+                  <span style={{ fontSize: 12, fontWeight: 500 }}>
+                    {mode.scale_root} {mode.scale_name}
+                  </span>
+                  <span style={{ fontSize: 10, opacity: 0.72 }}>
+                    {mode.notes.join(" · ")}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {scales.length > 0 && (
         <div>
           <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 10 }}>
-            {scales.length} compatible scale{scales.length > 1 ? "s" : ""}
+            {scales.length} palette{scales.length > 1 ? "s" : ""} solo pour cette progression
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
             {scales.map((scale, index) => {
               const selected =
                 selectedScale?.scale_root === scale.scale_root
-                && selectedScale?.scale_name === scale.scale_name;
+                && canonicalScaleName(selectedScale?.scale_name ?? "") === canonicalScaleName(scale.scale_name);
               const borderColor =
                 scale.confidence === "high" ? "#1D9E75" : scale.confidence === "medium" ? "#BA7517" : "#D85A30";
 
@@ -88,6 +179,22 @@ export function ScaleSuggestionsPanel({
                   </div>
                   <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 5 }}>
                     {scale.notes.join(" · ")}
+                  </div>
+                  <div style={{ fontSize: 10, color: "var(--color-text-tertiary)", marginTop: 6 }}>
+                    Notes d'accord dedans: {scale.matching_notes.length} · Tensions a gerer: {scale.outside_notes.length}
+                  </div>
+                  {scale.characteristic_notes.length > 0 && (
+                    <div style={{ fontSize: 10, color: "#0B6F89", marginTop: 4 }}>
+                      Repère modal: {scale.characteristic_notes.join(" · ")}
+                    </div>
+                  )}
+                  {typeof scale.matching_chords === "number" && typeof scale.total_chords === "number" && (
+                    <div style={{ fontSize: 10, color: "var(--color-text-tertiary)", marginTop: 4 }}>
+                      Accords couverts: {scale.matching_chords}/{scale.total_chords}
+                    </div>
+                  )}
+                  <div style={{ fontSize: 10, color: "var(--color-text-tertiary)", marginTop: 4 }}>
+                    {scale.reason}
                   </div>
                 </div>
               );

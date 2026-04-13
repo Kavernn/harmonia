@@ -1,11 +1,25 @@
 import { useEffect, useEffectEvent, useState } from "react";
 import {
-  analyzeChordRequest,
+  analyzeProgressionRequest,
   buildProgressionRequest,
-  getCommonProgressions,
+  getCompatibleModes,
+  getProgressionStepOptions,
   getScaleFretboard,
+  getSuggestedProgressions,
 } from "../services/musicApi";
-import { NOTES, type FretPosition, type NamedProgression, type ProgressionChord, type ScaleSuggestion } from "../music";
+import {
+  type CompatibleMode,
+  NOTES,
+  canonicalScaleName,
+  defaultProgressionStepsForHarmony,
+  fallbackProgressionStepOptionsForHarmony,
+  type FretPosition,
+  type NamedProgression,
+  type ProgressionChord,
+  type ProgressionStepOption,
+  type ScaleSuggestion,
+} from "../music";
+import { usePersistentState } from "./usePersistentState";
 
 interface UseScaleAnalysisArgs {
   tuningKey: string;
@@ -15,6 +29,12 @@ interface UseScaleAnalysisArgs {
   onProgressionUpdated: (progression: ProgressionChord[]) => void;
 }
 
+function sameScale(scale: ScaleSuggestion | null, rootIndex: number, scaleName: string) {
+  if (!scale) return false;
+  return scale.scale_root === NOTES[rootIndex]
+    && canonicalScaleName(scale.scale_name) === canonicalScaleName(scaleName);
+}
+
 export function useScaleAnalysis({
   tuningKey,
   tuningSemitones,
@@ -22,35 +42,104 @@ export function useScaleAnalysis({
   onResetActiveStep,
   onProgressionUpdated,
 }: UseScaleAnalysisArgs) {
-  const [root, setRoot] = useState(0);
-  const [quality, setQuality] = useState("major");
-  const [minConf, setMinConf] = useState("high");
+  const [harmonyRoot, setHarmonyRoot] = usePersistentState("harmonia.harmony-root", 0);
+  const [harmonyScaleName, setHarmonyScaleName] = usePersistentState("harmonia.harmony-scale", "Ionian");
+  const [minConf, setMinConf] = usePersistentState("harmonia.min-confidence", "high");
+
+  const [soloScaleRoot, setSoloScaleRoot] = usePersistentState("harmonia.solo-scale-root", 0);
+  const [soloScaleName, setSoloScaleName] = usePersistentState("harmonia.solo-scale-name", "Ionian");
 
   const [scales, setScales] = useState<ScaleSuggestion[]>([]);
-  const [selectedScale, setSelectedScale] = useState<ScaleSuggestion | null>(null);
   const [namedProgs, setNamedProgs] = useState<NamedProgression[]>([]);
-  const [activeDegrees, setActiveDegrees] = useState<number[]>([0, 3, 4, 0]);
+  const [compatibleModes, setCompatibleModes] = useState<CompatibleMode[]>([]);
+  const [activeSteps, setActiveSteps] = useState<string[]>(defaultProgressionStepsForHarmony("Ionian"));
+  const [progressionStepOptions, setProgressionStepOptions] = useState<ProgressionStepOption[]>(
+    fallbackProgressionStepOptionsForHarmony("Ionian"),
+  );
   const [progression, setProgression] = useState<ProgressionChord[]>([]);
   const [scalePositions, setScalePositions] = useState<FretPosition[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    getCommonProgressions().then(setNamedProgs);
-  }, []);
+  const fallbackScaleNotes = Array.from(new Set(
+    scalePositions
+      .filter((position) => !position.is_avoid)
+      .map((position) => position.note),
+  )).sort((a, b) => NOTES.indexOf(a) - NOTES.indexOf(b));
+  const matchingCompatibleMode = compatibleModes.find((mode) =>
+    mode.scale_root === (NOTES[soloScaleRoot] ?? "C")
+    && canonicalScaleName(mode.scale_name) === canonicalScaleName(soloScaleName)
+  );
 
-  const analyzeChord = useEffectEvent(async () => {
+  const selectedScale = scales.find((scale) => sameScale(scale, soloScaleRoot, soloScaleName)) ?? {
+    scale_name: soloScaleName,
+    scale_root: NOTES[soloScaleRoot] ?? "C",
+    confidence: "high" as const,
+    matching_notes: [],
+    outside_notes: [],
+    reason: matchingCompatibleMode
+      ? `Mode compatible avec ${NOTES[harmonyRoot] ?? "C"} ${harmonyScaleName}`
+      : "Current solo palette",
+    notes: matchingCompatibleMode?.notes ?? fallbackScaleNotes,
+    characteristic_notes: matchingCompatibleMode?.characteristic_notes ?? [],
+    modal_avoid_notes: matchingCompatibleMode?.modal_avoid_notes ?? [],
+    resolution_notes: matchingCompatibleMode?.resolution_notes ?? [NOTES[soloScaleRoot] ?? "C"],
+    guidance: matchingCompatibleMode?.guidance ?? "Fais entendre la tonique et les notes d'accord avant les couleurs.",
+    mode: null,
+    matching_chords: progression.length > 0 ? progression.length : undefined,
+    total_chords: progression.length > 0 ? progression.length : undefined,
+  };
+
+  useEffect(() => {
+    getSuggestedProgressions(harmonyRoot, harmonyScaleName)
+      .then(setNamedProgs)
+      .catch((cause) => {
+        console.error(cause);
+        setNamedProgs([]);
+      });
+  }, [harmonyRoot, harmonyScaleName]);
+
+  useEffect(() => {
+    getProgressionStepOptions(harmonyRoot, harmonyScaleName)
+      .then(setProgressionStepOptions)
+      .catch((cause) => {
+        console.error(cause);
+        setProgressionStepOptions(fallbackProgressionStepOptionsForHarmony(harmonyScaleName));
+      });
+  }, [harmonyRoot, harmonyScaleName]);
+
+  useEffect(() => {
+    getCompatibleModes(harmonyRoot, harmonyScaleName)
+      .then(setCompatibleModes)
+      .catch((cause) => {
+        console.error(cause);
+        setCompatibleModes([]);
+      });
+  }, [harmonyRoot, harmonyScaleName]);
+
+  useEffect(() => {
+    setSoloScaleRoot(harmonyRoot);
+    setSoloScaleName(harmonyScaleName);
+  }, [harmonyRoot, harmonyScaleName, setSoloScaleName, setSoloScaleRoot]);
+
+  useEffect(() => {
+    setActiveSteps(defaultProgressionStepsForHarmony(harmonyScaleName));
+  }, [harmonyScaleName]);
+
+  const refreshHarmonyContext = useEffectEvent(async () => {
     setLoading(true);
     setError(null);
     stopJam();
-    setProgression([]);
-    setScalePositions([]);
-    onProgressionUpdated([]);
 
     try {
-      const results = await analyzeChordRequest(root, quality, minConf);
-      setScales(results);
-      setSelectedScale(results[0] ?? null);
+      const [nextProgression, nextSuggestions] = await Promise.all([
+        buildProgressionRequest(harmonyRoot, harmonyScaleName, activeSteps),
+        analyzeProgressionRequest(harmonyRoot, harmonyScaleName, activeSteps, minConf),
+      ]);
+
+      setProgression(nextProgression);
+      onProgressionUpdated(nextProgression);
+      setScales(nextSuggestions);
       onResetActiveStep();
     } catch (cause) {
       setError(String(cause));
@@ -59,31 +148,11 @@ export function useScaleAnalysis({
     }
   });
 
-  const buildProgression = useEffectEvent(async () => {
-    if (!selectedScale) return;
-    stopJam();
-
-    try {
-      const nextProgression = await buildProgressionRequest(
-        NOTES.indexOf(selectedScale.scale_root),
-        selectedScale.scale_name,
-        activeDegrees,
-      );
-      setProgression(nextProgression);
-      onProgressionUpdated(nextProgression);
-      onResetActiveStep();
-    } catch (cause) {
-      console.error(cause);
-    }
-  });
-
   const loadScaleFretboard = useEffectEvent(async () => {
-    if (!selectedScale) return;
-
     try {
       const positions = await getScaleFretboard(
-        NOTES.indexOf(selectedScale.scale_root),
-        selectedScale.scale_name,
+        soloScaleRoot,
+        soloScaleName,
         24,
         tuningSemitones,
       );
@@ -94,37 +163,60 @@ export function useScaleAnalysis({
   });
 
   useEffect(() => {
-    void analyzeChord();
-  }, [root, quality, minConf]);
+    void refreshHarmonyContext();
+  }, [harmonyRoot, harmonyScaleName, activeSteps, minConf]);
 
   useEffect(() => {
-    if (selectedScale) {
-      void buildProgression();
-    }
-  }, [selectedScale, activeDegrees]);
+    const paletteStillAvailable =
+      scales.some((scale) => sameScale(scale, soloScaleRoot, soloScaleName))
+      || compatibleModes.some((mode) =>
+        mode.scale_root === (NOTES[soloScaleRoot] ?? "C")
+        && canonicalScaleName(mode.scale_name) === canonicalScaleName(soloScaleName)
+      );
+    if (paletteStillAvailable) return;
+
+    const harmonyPalette = scales.find((scale) => sameScale(scale, harmonyRoot, harmonyScaleName)) ?? scales[0] ?? null;
+    if (!harmonyPalette) return;
+
+    setSoloScaleRoot(NOTES.indexOf(harmonyPalette.scale_root));
+    setSoloScaleName(canonicalScaleName(harmonyPalette.scale_name));
+  }, [scales, compatibleModes, soloScaleRoot, soloScaleName, harmonyRoot, harmonyScaleName, setSoloScaleName, setSoloScaleRoot]);
 
   useEffect(() => {
-    if (selectedScale) {
-      void loadScaleFretboard();
-    }
-  }, [selectedScale, tuningKey]);
+    void loadScaleFretboard();
+  }, [soloScaleRoot, soloScaleName, tuningKey]);
 
   return {
-    root,
-    quality,
+    harmonyRoot,
+    harmonyScaleName,
     minConf,
     scales,
     selectedScale,
     namedProgs,
-    activeDegrees,
+    compatibleModes,
+    activeSteps,
+    progressionStepOptions,
     progression,
     scalePositions,
     loading,
     error,
-    setRoot,
-    setQuality,
+    setHarmonyRoot,
+    setHarmonyScaleName,
     setMinConf,
-    setSelectedScale,
-    setActiveDegrees,
+    setSelectedScale: (scale: ScaleSuggestion) => {
+      const rootIndex = NOTES.indexOf(scale.scale_root);
+      if (rootIndex !== -1) {
+        setSoloScaleRoot(rootIndex);
+      }
+      setSoloScaleName(canonicalScaleName(scale.scale_name));
+    },
+    setSoloPalette: (scaleRoot: string, scaleName: string) => {
+      const rootIndex = NOTES.indexOf(scaleRoot);
+      if (rootIndex !== -1) {
+        setSoloScaleRoot(rootIndex);
+      }
+      setSoloScaleName(canonicalScaleName(scaleName));
+    },
+    setActiveSteps,
   };
 }

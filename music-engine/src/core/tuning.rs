@@ -20,8 +20,12 @@ impl Tuning {
     pub fn transpose(&self, semitones: i8, name: &'static str) -> Tuning {
         Tuning {
             name,
-            strings: self.strings.iter()
-                .map(|pc| PitchClass::new((pc.value() as i16 + semitones as i16).rem_euclid(12) as u8))
+            strings: self
+                .strings
+                .iter()
+                .map(|pc| {
+                    PitchClass::new((pc.value() as i16 + semitones as i16).rem_euclid(12) as u8)
+                })
                 .collect(),
         }
     }

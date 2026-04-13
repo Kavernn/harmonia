@@ -29,19 +29,19 @@ impl PitchClass {
     /// Nom par défaut (notation # uniquement — le choix b/# est une question d'affichage)
     pub fn name(self) -> &'static str {
         match self.0 {
-            0  => "C",
-            1  => "C#",
-            2  => "D",
-            3  => "D#",
-            4  => "E",
-            5  => "F",
-            6  => "F#",
-            7  => "G",
-            8  => "G#",
-            9  => "A",
+            0 => "C",
+            1 => "C#",
+            2 => "D",
+            3 => "D#",
+            4 => "E",
+            5 => "F",
+            6 => "F#",
+            7 => "G",
+            8 => "G#",
+            9 => "A",
             10 => "A#",
             11 => "B",
-            _  => unreachable!(),
+            _ => unreachable!(),
         }
     }
 }
@@ -49,7 +49,7 @@ impl PitchClass {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::intervals::{PERFECT_FIFTH, OCTAVE, MINOR_THIRD};
+    use crate::core::intervals::{MINOR_THIRD, OCTAVE, PERFECT_FIFTH};
 
     #[test]
     fn new_wraps_correctly() {

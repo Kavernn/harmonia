@@ -1,4 +1,4 @@
-use crate::core::intervals::{MINOR_THIRD, MAJOR_THIRD, PERFECT_FIFTH, TRITONE};
+use crate::core::intervals::{MAJOR_THIRD, MINOR_SIXTH, MINOR_THIRD, PERFECT_FIFTH, TRITONE};
 use crate::harmony::chord::Chord;
 use crate::harmony::scale::Scale;
 
@@ -8,8 +8,8 @@ pub const ROMAN: [&str; 7] = ["I", "II", "III", "IV", "V", "VI", "VII"];
 /// Un accord diatonique — issu naturellement d'une scale à un degré donné.
 #[derive(Debug, Clone)]
 pub struct DiatonicChord {
-    pub degree: usize,        // 0-based (0 = I, 6 = VII)
-    pub roman: &'static str,  // "I", "II", etc.
+    pub degree: usize, // 0-based (0 = I, 6 = VII)
+    pub roman: String, // "I", "ii", "III+", etc.
     pub chord: Chord,
     pub quality: DiatonicQuality,
 }
@@ -19,6 +19,7 @@ pub enum DiatonicQuality {
     Major,
     Minor,
     Diminished,
+    Augmented,
     /// Pour les scales sans tierce claire (pentatonique, blues)
     Indeterminate,
 }
@@ -26,9 +27,10 @@ pub enum DiatonicQuality {
 impl DiatonicQuality {
     pub fn label(&self) -> &'static str {
         match self {
-            DiatonicQuality::Major        => "major",
-            DiatonicQuality::Minor        => "minor",
-            DiatonicQuality::Diminished   => "diminished",
+            DiatonicQuality::Major => "major",
+            DiatonicQuality::Minor => "minor",
+            DiatonicQuality::Diminished => "diminished",
+            DiatonicQuality::Augmented => "augmented",
             DiatonicQuality::Indeterminate => "indeterminate",
         }
     }
@@ -39,11 +41,23 @@ impl DiatonicChord {
     pub fn display_name(&self) -> String {
         let root = self.chord.root.name();
         match self.quality {
-            DiatonicQuality::Major        => root.to_string(),
-            DiatonicQuality::Minor        => format!("{}m", root),
-            DiatonicQuality::Diminished   => format!("{}dim", root),
+            DiatonicQuality::Major => root.to_string(),
+            DiatonicQuality::Minor => format!("{}m", root),
+            DiatonicQuality::Diminished => format!("{}dim", root),
+            DiatonicQuality::Augmented => format!("{}+", root),
             DiatonicQuality::Indeterminate => root.to_string(),
         }
+    }
+}
+
+fn roman_for_quality(degree: usize, quality: &DiatonicQuality) -> String {
+    let base = ROMAN[degree % 7];
+    match quality {
+        DiatonicQuality::Major => base.to_string(),
+        DiatonicQuality::Minor => base.to_lowercase(),
+        DiatonicQuality::Diminished => format!("{}°", base.to_lowercase()),
+        DiatonicQuality::Augmented => format!("{}+", base),
+        DiatonicQuality::Indeterminate => base.to_string(),
     }
 }
 
@@ -68,6 +82,8 @@ fn build_diatonic_chord(scale: &Scale, degree: usize) -> DiatonicChord {
         DiatonicQuality::Minor
     } else if third_interval == MINOR_THIRD && fifth_interval == TRITONE {
         DiatonicQuality::Diminished
+    } else if third_interval == MAJOR_THIRD && fifth_interval == MINOR_SIXTH {
+        DiatonicQuality::Augmented
     } else {
         DiatonicQuality::Indeterminate
     };
@@ -76,7 +92,7 @@ fn build_diatonic_chord(scale: &Scale, degree: usize) -> DiatonicChord {
 
     DiatonicChord {
         degree,
-        roman: ROMAN[degree % 7],
+        roman: roman_for_quality(degree, &quality),
         chord: Chord::new(root, intervals),
         quality,
     }
@@ -98,8 +114,12 @@ mod tests {
     use crate::core::notes::PitchClass;
     use crate::harmony::scale::{major_scale, natural_minor_scale};
 
-    fn c() -> PitchClass { PitchClass::new(0) }
-    fn a() -> PitchClass { PitchClass::new(9) }
+    fn c() -> PitchClass {
+        PitchClass::new(0)
+    }
+    fn a() -> PitchClass {
+        PitchClass::new(9)
+    }
 
     #[test]
     fn c_major_has_7_diatonic_chords() {
@@ -119,7 +139,7 @@ mod tests {
         let chords = diatonic_chords(&major_scale(c()));
         assert_eq!(chords[1].quality, DiatonicQuality::Minor);
         assert_eq!(chords[1].chord.root.name(), "D");
-        assert_eq!(chords[1].roman, "II");
+        assert_eq!(chords[1].roman, "ii");
     }
 
     #[test]
@@ -137,7 +157,7 @@ mod tests {
         let chords = diatonic_chords(&major_scale(c()));
         assert_eq!(chords[6].quality, DiatonicQuality::Diminished);
         assert_eq!(chords[6].chord.root.name(), "B");
-        assert_eq!(chords[6].roman, "VII");
+        assert_eq!(chords[6].roman, "vii°");
     }
 
     #[test]
@@ -145,15 +165,18 @@ mod tests {
         // I maj, II min, III min, IV maj, V maj, VI min, VII dim
         let chords = diatonic_chords(&major_scale(c()));
         let qualities: Vec<&DiatonicQuality> = chords.iter().map(|c| &c.quality).collect();
-        assert_eq!(qualities, vec![
-            &DiatonicQuality::Major,
-            &DiatonicQuality::Minor,
-            &DiatonicQuality::Minor,
-            &DiatonicQuality::Major,
-            &DiatonicQuality::Major,
-            &DiatonicQuality::Minor,
-            &DiatonicQuality::Diminished,
-        ]);
+        assert_eq!(
+            qualities,
+            vec![
+                &DiatonicQuality::Major,
+                &DiatonicQuality::Minor,
+                &DiatonicQuality::Minor,
+                &DiatonicQuality::Major,
+                &DiatonicQuality::Major,
+                &DiatonicQuality::Minor,
+                &DiatonicQuality::Diminished,
+            ]
+        );
     }
 
     #[test]
@@ -161,13 +184,25 @@ mod tests {
         let chords = diatonic_chords(&natural_minor_scale(a()));
         assert_eq!(chords[0].quality, DiatonicQuality::Minor);
         assert_eq!(chords[0].chord.root, a());
+        assert_eq!(chords[0].roman, "i");
     }
 
     #[test]
     fn display_name_formats_correctly() {
         let chords = diatonic_chords(&major_scale(c()));
-        assert_eq!(chords[0].display_name(), "C");      // I  = C major
-        assert_eq!(chords[1].display_name(), "Dm");     // II = D minor
-        assert_eq!(chords[6].display_name(), "Bdim");   // VII= B dim
+        assert_eq!(chords[0].display_name(), "C"); // I  = C major
+        assert_eq!(chords[1].display_name(), "Dm"); // II = D minor
+        assert_eq!(chords[6].display_name(), "Bdim"); // VII= B dim
+    }
+
+    #[test]
+    fn harmonic_minor_has_augmented_third_degree() {
+        use crate::harmony::scale::harmonic_minor_scale;
+
+        let chords = diatonic_chords(&harmonic_minor_scale(a()));
+        assert_eq!(chords[2].quality, DiatonicQuality::Augmented);
+        assert_eq!(chords[2].roman, "III+");
+        assert_eq!(chords[4].quality, DiatonicQuality::Major);
+        assert_eq!(chords[4].roman, "V");
     }
 }

@@ -1,10 +1,11 @@
 // music-engine — core musical intelligence
 // Rule: this crate must never depend on app/, UI, or audio.
 
+pub mod analysis;
+pub mod api;
 pub mod core;
 pub mod harmony;
-pub mod analysis;
+pub mod practice;
 pub mod progression;
-pub mod riff;
 pub mod rhythm;
-pub mod api;
+pub mod riff;

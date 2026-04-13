@@ -29,7 +29,7 @@ impl Chord {
 
     /// Vrai si l'accord est ambigu (pas de tierce — ex: power chord)
     pub fn is_ambiguous(&self) -> bool {
-        use crate::core::intervals::{MINOR_THIRD, MAJOR_THIRD};
+        use crate::core::intervals::{MAJOR_THIRD, MINOR_THIRD};
         !self.intervals.contains(&MINOR_THIRD) && !self.intervals.contains(&MAJOR_THIRD)
     }
 }
@@ -58,6 +58,11 @@ pub fn diminished_chord(root: PitchClass) -> Chord {
     Chord::new(root, vec![MINOR_THIRD, TRITONE])
 }
 
+/// Accord augmenté — root + tierce majeure + quinte augmentée
+pub fn augmented_chord(root: PitchClass) -> Chord {
+    Chord::new(root, vec![MAJOR_THIRD, MINOR_SIXTH])
+}
+
 /// Accord sus2 — root + seconde majeure + quinte
 pub fn sus2_chord(root: PitchClass) -> Chord {
     Chord::new(root, vec![MAJOR_SECOND, PERFECT_FIFTH])
@@ -73,9 +78,15 @@ mod tests {
     use super::*;
     use crate::core::notes::PitchClass;
 
-    fn c() -> PitchClass { PitchClass::new(0) }
-    fn e() -> PitchClass { PitchClass::new(4) }
-    fn g() -> PitchClass { PitchClass::new(7) }
+    fn c() -> PitchClass {
+        PitchClass::new(0)
+    }
+    fn e() -> PitchClass {
+        PitchClass::new(4)
+    }
+    fn g() -> PitchClass {
+        PitchClass::new(7)
+    }
 
     #[test]
     fn major_chord_has_3_notes() {
@@ -118,5 +129,13 @@ mod tests {
     #[test]
     fn diminished_root_is_correct() {
         assert_eq!(diminished_chord(c()).root, c());
+    }
+
+    #[test]
+    fn augmented_chord_has_augmented_fifth() {
+        let pcs = augmented_chord(c()).pitch_classes();
+        assert!(pcs.contains(&c()));
+        assert!(pcs.contains(&PitchClass::new(4)));
+        assert!(pcs.contains(&PitchClass::new(8)));
     }
 }

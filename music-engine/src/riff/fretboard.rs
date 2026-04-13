@@ -4,8 +4,8 @@ use crate::core::tuning::Tuning;
 /// Une note sur le manche — corde + frette
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FretPosition {
-    pub string: usize,     // 0 = corde la plus grave
-    pub fret: u8,          // 0 = corde à vide
+    pub string: usize, // 0 = corde la plus grave
+    pub fret: u8,      // 0 = corde à vide
     pub pitch_class: PitchClass,
     pub is_chord_tone: bool,
 }
@@ -21,7 +21,8 @@ pub fn fret_positions(
     scale_tones: &[PitchClass],
     max_fret: u8,
 ) -> Vec<FretPosition> {
-    let all_notes: Vec<(PitchClass, bool)> = chord_tones.iter()
+    let all_notes: Vec<(PitchClass, bool)> = chord_tones
+        .iter()
         .map(|&pc| (pc, true))
         .chain(scale_tones.iter().map(|&pc| (pc, false)))
         .collect();
@@ -50,12 +51,18 @@ pub fn fret_positions(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::tuning::standard;
     use crate::core::notes::PitchClass;
+    use crate::core::tuning::standard;
 
-    fn c() -> PitchClass { PitchClass::new(0) }
-    fn e() -> PitchClass { PitchClass::new(4) }
-    fn g() -> PitchClass { PitchClass::new(7) }
+    fn c() -> PitchClass {
+        PitchClass::new(0)
+    }
+    fn e() -> PitchClass {
+        PitchClass::new(4)
+    }
+    fn g() -> PitchClass {
+        PitchClass::new(7)
+    }
 
     #[test]
     fn c_major_triad_has_positions_on_all_strings() {
@@ -94,7 +101,10 @@ mod tests {
     #[test]
     fn fret_count_is_reasonable_for_c_major_scale() {
         let tuning = standard();
-        let scale_notes: Vec<PitchClass> = [0,2,4,5,7,9,11].iter().map(|&n| PitchClass::new(n)).collect();
+        let scale_notes: Vec<PitchClass> = [0, 2, 4, 5, 7, 9, 11]
+            .iter()
+            .map(|&n| PitchClass::new(n))
+            .collect();
         let positions = fret_positions(&tuning, &[], &scale_notes, 12);
         // 7 notes × 6 cordes × environ 2 positions par octave = beaucoup
         assert!(positions.len() > 20);

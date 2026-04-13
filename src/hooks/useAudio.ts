@@ -1,6 +1,13 @@
 import { useRef } from "react";
-import type { BeatStepEvent, StrumStyleId } from "../music";
-import { resolveOpenStringMidis, STRUM_STYLES, swingDelaySeconds } from "../music";
+import type { AccompanimentToneId, BeatStepEvent, StrumStyleId } from "../music";
+import { STRUM_STYLES, swingDelaySeconds } from "../music";
+import { buildGuitarVoicing } from "../guitarVoicing";
+
+const STRUM_HUMANIZE_MS: Record<StrumStyleId, number> = {
+  smooth: 8,
+  straight: 4,
+  arpeggio: 10,
+};
 
 declare global {
   interface Window {
@@ -22,6 +29,9 @@ export function useAudio(masterVolume: number, clickVolume: number, guitarVolume
   const sampleCacheRef = useRef<Map<string, AudioBuffer>>(new Map());
   const activeChordGainRef = useRef<GainNode | null>(null);
   const noiseBufferRef = useRef<AudioBuffer | null>(null);
+  const drumHighpassRef = useRef<BiquadFilterNode | null>(null);
+  const drumLowpassRef = useRef<BiquadFilterNode | null>(null);
+  const lastVoicingRef = useRef<Array<number | null> | null>(null);
 
   function getCtx(): AudioContext {
     if (!ctxRef.current) {
@@ -70,9 +80,23 @@ export function useAudio(masterVolume: number, clickVolume: number, guitarVolume
     const ctx = getCtx();
     if (!drumBusRef.current) {
       const bus = ctx.createGain();
-      bus.gain.value = 0.72;
-      bus.connect(getMaster());
+      const highpass = ctx.createBiquadFilter();
+      const lowpass = ctx.createBiquadFilter();
+
+      bus.gain.value = 0.66;
+      highpass.type = "highpass";
+      highpass.frequency.value = 42;
+      highpass.Q.value = 0.7;
+      lowpass.type = "lowpass";
+      lowpass.frequency.value = 6200;
+      lowpass.Q.value = 0.25;
+
+      bus.connect(highpass);
+      highpass.connect(lowpass);
+      lowpass.connect(getMaster());
       drumBusRef.current = bus;
+      drumHighpassRef.current = highpass;
+      drumLowpassRef.current = lowpass;
     }
     return drumBusRef.current;
   }
@@ -101,6 +125,10 @@ export function useAudio(masterVolume: number, clickVolume: number, guitarVolume
     if (ctx.state !== "running") {
       await ctx.resume();
     }
+  }
+
+  function getCurrentTime() {
+    return getCtx().currentTime;
   }
 
   function getNoiseBuffer() {
@@ -146,29 +174,43 @@ export function useAudio(masterVolume: number, clickVolume: number, guitarVolume
   function playClick(isDownbeat: boolean, when?: number) {
     const ctx = getCtx();
     const clickBus = getClickBus();
-    const osc = ctx.createOscillator();
-    const transient = ctx.createOscillator();
-    const filter = ctx.createBiquadFilter();
-    const gain = ctx.createGain();
     const startTime = when ?? ctx.currentTime;
-    osc.type = "triangle";
-    transient.type = "sine";
-    osc.frequency.value = isDownbeat ? 1480 : 1120;
-    transient.frequency.value = isDownbeat ? 2200 : 1680;
-    filter.type = "bandpass";
-    filter.frequency.value = isDownbeat ? 1650 : 1350;
-    filter.Q.value = 1.1;
-    osc.connect(filter);
-    transient.connect(filter);
-    filter.connect(gain);
-    gain.connect(clickBus);
-    gain.gain.setValueAtTime(0.0001, startTime);
-    gain.gain.linearRampToValueAtTime(isDownbeat ? 0.18 : 0.1, startTime + 0.002);
-    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.035);
-    osc.start(startTime);
-    transient.start(startTime);
-    osc.stop(startTime + 0.04);
-    transient.stop(startTime + 0.016);
+    const body = ctx.createOscillator();
+    const bodyGain = ctx.createGain();
+    const bodyFilter = ctx.createBiquadFilter();
+    const attack = ctx.createBufferSource();
+    const attackFilter = ctx.createBiquadFilter();
+    const attackGain = ctx.createGain();
+
+    body.type = "triangle";
+    body.frequency.setValueAtTime(isDownbeat ? 1020 : 820, startTime);
+    body.frequency.exponentialRampToValueAtTime(isDownbeat ? 760 : 620, startTime + 0.035);
+    bodyFilter.type = "lowpass";
+    bodyFilter.frequency.value = isDownbeat ? 1900 : 1550;
+    bodyFilter.Q.value = 0.3;
+    bodyGain.gain.setValueAtTime(0.0001, startTime);
+    bodyGain.gain.linearRampToValueAtTime(isDownbeat ? 0.11 : 0.075, startTime + 0.0015);
+    bodyGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.045);
+
+    attack.buffer = getNoiseBuffer();
+    attackFilter.type = "bandpass";
+    attackFilter.frequency.value = isDownbeat ? 2450 : 2100;
+    attackFilter.Q.value = 1.25;
+    attackGain.gain.setValueAtTime(0.0001, startTime);
+    attackGain.gain.linearRampToValueAtTime(isDownbeat ? 0.05 : 0.03, startTime + 0.001);
+    attackGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.014);
+
+    body.connect(bodyFilter);
+    bodyFilter.connect(bodyGain);
+    bodyGain.connect(clickBus);
+    attack.connect(attackFilter);
+    attackFilter.connect(attackGain);
+    attackGain.connect(clickBus);
+
+    body.start(startTime);
+    attack.start(startTime);
+    body.stop(startTime + 0.05);
+    attack.stop(startTime + 0.02);
   }
 
   function midiToFreq(midi: number) {
@@ -179,27 +221,6 @@ export function useAudio(masterVolume: number, clickVolume: number, guitarVolume
     const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
     const octave = Math.floor(midi / 12) - 1;
     return `${names[midi % 12]}${octave}`;
-  }
-
-  function buildGuitarVoicing(chordTones: string[], tuningStrings: string[]) {
-    const pitchClassToSemi: Record<string, number> = {
-      C: 0, "C#": 1, D: 2, "D#": 3, E: 4, F: 5,
-      "F#": 6, G: 7, "G#": 8, A: 9, "A#": 10, B: 11,
-    };
-    const stringMidis = resolveOpenStringMidis(tuningStrings);
-
-    return stringMidis.map((openMidi, stringIndex) => {
-      const targetPc = chordTones[stringIndex % Math.max(chordTones.length, 1)];
-      const semitone = pitchClassToSemi[targetPc];
-      if (semitone === undefined) return null;
-
-      let midi = openMidi;
-      while (midi % 12 !== semitone) midi += 1;
-      while (midi < openMidi + 3) midi += 12;
-      while (midi > openMidi + 12) midi -= 12;
-
-      return midi;
-    }).filter((midi): midi is number => midi !== null);
   }
 
   async function getSampleBuffer(noteName: string) {
@@ -279,7 +300,7 @@ export function useAudio(masterVolume: number, clickVolume: number, guitarVolume
   }
 
   async function preloadChordSamples(chordTones: string[], tuningStrings: string[]) {
-    const voicing = buildGuitarVoicing(chordTones, tuningStrings);
+    const voicing = buildGuitarVoicing({ chordTones, tuningStrings }).filter((midi): midi is number => midi != null);
     await loadGuitarSoundfont();
     await Promise.all(voicing.map((midi) => getSampleBuffer(midiToNoteName(midi)).catch(() => null)));
   }
@@ -294,12 +315,12 @@ export function useAudio(masterVolume: number, clickVolume: number, guitarVolume
       const tone = ctx.createBiquadFilter();
 
       tone.type = "lowpass";
-      tone.frequency.value = 4200;
+      tone.frequency.value = 3850;
       tone.Q.value = 0.1;
 
       gain.gain.setValueAtTime(0.0001, when);
-      gain.gain.linearRampToValueAtTime(0.52 * velocity, when + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.001, when + Math.min(1.25, buffer.duration));
+      gain.gain.linearRampToValueAtTime(0.44 * velocity, when + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, when + Math.min(1.15, buffer.duration));
 
       source.buffer = buffer;
       source.connect(tone);
@@ -309,34 +330,104 @@ export function useAudio(masterVolume: number, clickVolume: number, guitarVolume
     }).catch(() => null);
   }
 
-  function playChordStrum(chordTones: string[], tuningStrings: string[], strumStyle: StrumStyleId, when?: number) {
+  function playSynthPadNote(freq: number, when: number, velocity: number, destination: AudioNode) {
+    const ctx = getCtx();
+    const oscA = ctx.createOscillator();
+    const oscB = ctx.createOscillator();
+    const oscSub = ctx.createOscillator();
+    const filter = ctx.createBiquadFilter();
+    const voiceGain = ctx.createGain();
+
+    oscA.type = "triangle";
+    oscB.type = "sawtooth";
+    oscSub.type = "sine";
+
+    oscA.frequency.setValueAtTime(freq, when);
+    oscB.frequency.setValueAtTime(freq * 1.002, when);
+    oscSub.frequency.setValueAtTime(freq / 2, when);
+    oscB.detune.setValueAtTime(5, when);
+
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(1350, when);
+    filter.frequency.linearRampToValueAtTime(2100, when + 0.18);
+    filter.frequency.exponentialRampToValueAtTime(900, when + 1.15);
+    filter.Q.value = 0.35;
+
+    voiceGain.gain.setValueAtTime(0.0001, when);
+    voiceGain.gain.linearRampToValueAtTime(0.14 * velocity, when + 0.06);
+    voiceGain.gain.exponentialRampToValueAtTime(0.055 * velocity, when + 0.36);
+    voiceGain.gain.exponentialRampToValueAtTime(0.001, when + 1.45);
+
+    oscA.connect(filter);
+    oscB.connect(filter);
+    oscSub.connect(filter);
+    filter.connect(voiceGain);
+    voiceGain.connect(destination);
+
+    oscA.start(when);
+    oscB.start(when);
+    oscSub.start(when);
+    oscA.stop(when + 1.55);
+    oscB.stop(when + 1.55);
+    oscSub.stop(when + 1.55);
+  }
+
+  function playChordStrum(
+    chordTones: string[],
+    tuningStrings: string[],
+    strumStyle: StrumStyleId,
+    accompanimentTone: AccompanimentToneId,
+    when?: number,
+  ) {
     const ctx = getCtx();
     const startTime = when ?? ctx.currentTime;
-    const voicing = buildGuitarVoicing(chordTones, tuningStrings);
+    const voicing = buildGuitarVoicing({
+      chordTones,
+      tuningStrings,
+      previousVoicing: lastVoicingRef.current,
+    });
     const guitarBus = getGuitarBus();
     const chordGain = ctx.createGain();
     const style = STRUM_STYLES.find((item) => item.id === strumStyle) ?? STRUM_STYLES[0];
+    const sounding = voicing
+      .map((midi, stringIndex) => ({ midi, stringIndex }))
+      .filter((item): item is { midi: number; stringIndex: number } => item.midi != null);
+    const humanizeMs = STRUM_HUMANIZE_MS[strumStyle];
 
     chordGain.gain.setValueAtTime(0.0001, startTime);
     chordGain.gain.linearRampToValueAtTime(1, startTime + 0.01);
-    chordGain.gain.exponentialRampToValueAtTime(0.001, startTime + (strumStyle === "arpeggio" ? 1.45 : 1.15));
+    chordGain.gain.exponentialRampToValueAtTime(0.001, startTime + (accompanimentTone === "synth" ? 1.7 : strumStyle === "arpeggio" ? 1.35 : 1.05));
     chordGain.connect(guitarBus);
 
     if (activeChordGainRef.current) {
       activeChordGainRef.current.gain.cancelScheduledValues(startTime);
       activeChordGainRef.current.gain.setValueAtTime(Math.max(0.0001, activeChordGainRef.current.gain.value), startTime);
-      activeChordGainRef.current.gain.exponentialRampToValueAtTime(0.001, startTime + 0.08);
+      activeChordGainRef.current.gain.exponentialRampToValueAtTime(0.001, startTime + 0.06);
     }
     activeChordGainRef.current = chordGain;
+    lastVoicingRef.current = voicing;
 
-    voicing.forEach((midi, i) => {
-      const delay = i * (style.spreadMs / 1000);
-      const velocity = 1 - i * style.velocityDrop;
+    if (accompanimentTone === "synth") {
+      sounding.forEach(({ midi }, soundingIndex) => {
+        const delay = soundingIndex * Math.max(0.006, style.spreadMs / 3000);
+        const velocity = Math.max(0.42, 0.82 - soundingIndex * 0.05);
+        playSynthPadNote(midiToFreq(midi), startTime + delay, velocity, chordGain);
+      });
+      return;
+    }
+
+    sounding.forEach(({ midi }, soundingIndex) => {
+      const delay = soundingIndex * (style.spreadMs / 1000) + (Math.random() * humanizeMs) / 1000;
+      const stringAccent = 1.05 - soundingIndex * 0.035;
+      const velocity = Math.max(
+        0.52,
+        (1 - soundingIndex * style.velocityDrop) * stringAccent * (0.94 + Math.random() * 0.12),
+      );
       const noteName = midiToNoteName(midi);
       if (sampleCacheRef.current.has(noteName)) {
-        playSampledString(noteName, startTime + delay, Math.max(0.55, velocity), chordGain);
+        playSampledString(noteName, startTime + delay, velocity, chordGain);
       } else {
-        pluckString(midiToFreq(midi), startTime + delay, Math.max(0.55, velocity), chordGain);
+        pluckString(midiToFreq(midi), startTime + delay, velocity, chordGain);
       }
     });
   }
@@ -348,20 +439,21 @@ export function useAudio(masterVolume: number, clickVolume: number, guitarVolume
     const body = ctx.createBiquadFilter();
 
     osc.type = "sine";
-    osc.frequency.setValueAtTime(150, when);
-    osc.frequency.exponentialRampToValueAtTime(48, when + 0.15);
+    osc.frequency.setValueAtTime(138, when);
+    osc.frequency.exponentialRampToValueAtTime(52, when + 0.16);
 
     body.type = "lowpass";
-    body.frequency.value = 180;
+    body.frequency.value = 210;
     body.Q.value = 0.4;
 
     gain.gain.setValueAtTime(0.0001, when);
-    gain.gain.linearRampToValueAtTime(0.9 * velocity, when + 0.003);
-    gain.gain.exponentialRampToValueAtTime(0.001, when + 0.18);
+    gain.gain.linearRampToValueAtTime(0.82 * velocity, when + 0.003);
+    gain.gain.exponentialRampToValueAtTime(0.001, when + 0.19);
 
     osc.connect(body);
     body.connect(gain);
     gain.connect(getDrumBus());
+    playNoiseBurst(when, 0.015, 0.05 * velocity, "bandpass", 1800, 0.9);
     osc.start(when);
     osc.stop(when + 0.2);
   }
@@ -400,13 +492,13 @@ export function useAudio(masterVolume: number, clickVolume: number, guitarVolume
     const tone = ctx.createOscillator();
     const toneGain = ctx.createGain();
 
-    playNoiseBurst(when, 0.16, 0.34 * velocity, "bandpass", 1900, 0.7);
+    playNoiseBurst(when, 0.14, 0.28 * velocity, "bandpass", 1650, 0.75);
 
     tone.type = "triangle";
-    tone.frequency.setValueAtTime(190, when);
-    tone.frequency.exponentialRampToValueAtTime(110, when + 0.08);
+    tone.frequency.setValueAtTime(176, when);
+    tone.frequency.exponentialRampToValueAtTime(102, when + 0.08);
     toneGain.gain.setValueAtTime(0.0001, when);
-    toneGain.gain.linearRampToValueAtTime(0.24 * velocity, when + 0.002);
+    toneGain.gain.linearRampToValueAtTime(0.18 * velocity, when + 0.002);
     toneGain.gain.exponentialRampToValueAtTime(0.001, when + 0.09);
     tone.connect(toneGain);
     toneGain.connect(getDrumBus());
@@ -416,12 +508,12 @@ export function useAudio(masterVolume: number, clickVolume: number, guitarVolume
 
   function playClap(when: number, velocity: number) {
     [0, 0.012, 0.026].forEach((offset, index) => {
-      playNoiseBurst(when + offset, 0.08 - index * 0.01, (0.22 - index * 0.03) * velocity, "bandpass", 1500, 1.4);
+      playNoiseBurst(when + offset, 0.065 - index * 0.008, (0.16 - index * 0.02) * velocity, "bandpass", 1320, 1.25);
     });
   }
 
   function playHat(when: number, velocity: number, open: boolean) {
-    playNoiseBurst(when, open ? 0.22 : 0.05, (open ? 0.18 : 0.14) * velocity, "highpass", 5200, 0.8);
+    playNoiseBurst(when, open ? 0.18 : 0.04, (open ? 0.14 : 0.11) * velocity, "highpass", 4700, 0.7);
   }
 
   function playPerc(when: number, velocity: number) {
@@ -449,31 +541,31 @@ export function useAudio(masterVolume: number, clickVolume: number, guitarVolume
     osc.stop(when + 0.09);
   }
 
-  function playBeatStep(events: BeatStepEvent[], step: number, pulseMs: number, swing: number) {
-    const ctx = getCtx();
-    const when = ctx.currentTime + swingDelaySeconds(step, pulseMs, swing);
+  function playBeatStep(events: BeatStepEvent[], step: number, pulseMs: number, swing: number, when?: number) {
+    const baseTime = when ?? getCurrentTime();
+    const startTime = baseTime + swingDelaySeconds(step, pulseMs, swing);
 
     events.forEach((event) => {
       const velocity = Math.max(0.08, event.velocity / 127);
 
       switch (event.voice) {
         case "Kick":
-          playKick(when, velocity);
+          playKick(startTime, velocity);
           break;
         case "Snare":
-          playSnare(when, velocity);
+          playSnare(startTime, velocity);
           break;
         case "Clap":
-          playClap(when, velocity);
+          playClap(startTime, velocity);
           break;
         case "Closed Hat":
-          playHat(when, velocity, false);
+          playHat(startTime, velocity, false);
           break;
         case "Open Hat":
-          playHat(when, velocity, true);
+          playHat(startTime, velocity, true);
           break;
         case "Perc":
-          playPerc(when, velocity);
+          playPerc(startTime, velocity);
           break;
         default:
           break;
@@ -481,8 +573,29 @@ export function useAudio(masterVolume: number, clickVolume: number, guitarVolume
     });
   }
 
+  function playGuideTone(midi: number, when?: number, velocity = 0.34) {
+    const ctx = getCtx();
+    const startTime = when ?? ctx.currentTime;
+    const cueGain = ctx.createGain();
+    const noteName = midiToNoteName(midi);
+
+    cueGain.gain.setValueAtTime(0.0001, startTime);
+    cueGain.gain.linearRampToValueAtTime(0.52, startTime + 0.006);
+    cueGain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.46);
+    cueGain.connect(getGuitarBus());
+
+    if (sampleCacheRef.current.has(noteName)) {
+      playSampledString(noteName, startTime, velocity, cueGain);
+      return;
+    }
+
+    void getSampleBuffer(noteName).catch(() => null);
+    pluckString(midiToFreq(midi), startTime, velocity, cueGain);
+  }
+
   function stopAllSounds() {
     const ctx = ctxRef.current;
+    lastVoicingRef.current = null;
     if (!ctx || !activeChordGainRef.current) return;
     const now = ctx.currentTime;
     activeChordGainRef.current.gain.cancelScheduledValues(now);
@@ -490,5 +603,14 @@ export function useAudio(masterVolume: number, clickVolume: number, guitarVolume
     activeChordGainRef.current.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
   }
 
-  return { unlockAudio, preloadChordSamples, playClick, playChordStrum, playBeatStep, stopAllSounds };
+  return {
+    getCurrentTime,
+    unlockAudio,
+    preloadChordSamples,
+    playClick,
+    playChordStrum,
+    playBeatStep,
+    playGuideTone,
+    stopAllSounds,
+  };
 }
