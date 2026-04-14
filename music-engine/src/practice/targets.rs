@@ -4,7 +4,7 @@ use crate::progression::builder::build_progression_from_steps;
 use crate::progression::solo::{contextual_modal_guidance, solo_notes_for_chord};
 
 use super::exercise::TargetStrategy;
-use super::session::PracticePlan;
+use super::session::{PracticePlan, ScaleRunDirection};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PracticeTargetRole {
@@ -14,6 +14,8 @@ pub enum PracticeTargetRole {
     Passing,
     PhraseStart,
     PhraseAnswer,
+    ScaleNote,
+    ArpeggioNote,
 }
 
 impl PracticeTargetRole {
@@ -25,6 +27,8 @@ impl PracticeTargetRole {
             PracticeTargetRole::Passing => "passing",
             PracticeTargetRole::PhraseStart => "phrase_start",
             PracticeTargetRole::PhraseAnswer => "phrase_answer",
+            PracticeTargetRole::ScaleNote => "scale_note",
+            PracticeTargetRole::ArpeggioNote => "arpeggio_note",
         }
     }
 }
@@ -260,6 +264,82 @@ pub fn practice_targets(plan: &PracticePlan) -> Result<Vec<PracticeTarget>, Stri
                     ));
                 }
             }
+            TargetStrategy::ScaleRun => {
+                let scale_sequence = solo_scale.pitch_classes();
+                let scale_len = scale_sequence.len().max(1);
+                let up_down_len = if scale_len <= 2 { scale_len } else { scale_len * 2 - 2 };
+
+                for pulse_index in 0..pulse_total {
+                    let pitch_index = match plan.scale_run_direction {
+                        ScaleRunDirection::Ascending => (pulse_index as usize) % scale_len,
+                        ScaleRunDirection::Descending => {
+                            let offset = (pulse_index as usize) % scale_len;
+                            scale_len.saturating_sub(1).saturating_sub(offset)
+                        }
+                        ScaleRunDirection::UpDown => {
+                            let idx = (pulse_index as usize) % up_down_len;
+                            if idx < scale_len { idx } else { up_down_len - idx }
+                        }
+                    };
+                    let pitch = scale_sequence[pitch_index];
+                    targets.push(target(
+                        step_index,
+                        &step.roman,
+                        &step.display_name,
+                        pulse_index,
+                        pulse_total,
+                        PracticeTargetRole::ScaleNote,
+                        80,
+                        vec![pitch],
+                        format!(
+                            "Joue {} en alternate picking dans la gamme {}.",
+                            pitch.name(),
+                            solo_scale.name
+                        ),
+                    ));
+                }
+            }
+            TargetStrategy::ChordToneRun => {
+                let mut chord_sequence = step.chord.pitch_classes();
+                if chord_sequence.is_empty() {
+                    chord_sequence = solo.chord_tones.clone();
+                }
+                if chord_sequence.is_empty() {
+                    chord_sequence = scale_targets.clone();
+                }
+                let chord_len = chord_sequence.len().max(1);
+                let up_down_len = if chord_len <= 2 { chord_len } else { chord_len * 2 - 2 };
+
+                for pulse_index in 0..pulse_total {
+                    let pitch_index = match plan.scale_run_direction {
+                        ScaleRunDirection::Ascending => (pulse_index as usize) % chord_len,
+                        ScaleRunDirection::Descending => {
+                            let offset = (pulse_index as usize) % chord_len;
+                            chord_len.saturating_sub(1).saturating_sub(offset)
+                        }
+                        ScaleRunDirection::UpDown => {
+                            let idx = (pulse_index as usize) % up_down_len;
+                            if idx < chord_len { idx } else { up_down_len - idx }
+                        }
+                    };
+                    let pitch = chord_sequence[pitch_index];
+                    targets.push(target(
+                        step_index,
+                        &step.roman,
+                        &step.display_name,
+                        pulse_index,
+                        pulse_total,
+                        PracticeTargetRole::ArpeggioNote,
+                        85,
+                        vec![pitch],
+                        format!(
+                            "Arpège {} en sweeping sur {}.",
+                            step.display_name,
+                            pitch.name(),
+                        ),
+                    ));
+                }
+            }
         }
     }
 
@@ -271,7 +351,7 @@ mod tests {
     use super::*;
     use crate::core::notes::PitchClass;
     use crate::practice::session::{
-        InputMode, PracticeNoteValue, PracticePlanArgs, build_practice_plan,
+        InputMode, PracticeNoteValue, PracticePlanArgs, ScaleRunDirection, build_practice_plan,
     };
 
     #[test]
@@ -294,6 +374,8 @@ mod tests {
             input_mode: InputMode::Midi,
             position_start: None,
             window_size: None,
+            scale_run_direction: ScaleRunDirection::Ascending,
+            scale_run_notes_per_string: 3,
         })
         .expect("practice plan should build");
 
@@ -325,6 +407,8 @@ mod tests {
             input_mode: InputMode::Midi,
             position_start: None,
             window_size: None,
+            scale_run_direction: ScaleRunDirection::Ascending,
+            scale_run_notes_per_string: 3,
         })
         .expect("practice plan should build");
 
@@ -338,5 +422,36 @@ mod tests {
             target.role == PracticeTargetRole::Resolution
                 && target.pitch_classes.contains(&PitchClass::new(9))
         }));
+    }
+
+    #[test]
+    fn scale_run_targets_create_one_target_per_pulse() {
+        let plan = build_practice_plan(PracticePlanArgs {
+            exercise_id: "scale-speed-picking",
+            harmony_root: PitchClass::new(0),
+            harmony_scale_name: "Ionian",
+            solo_scale_root: PitchClass::new(0),
+            solo_scale_name: "Ionian",
+            progression_steps: &[],
+            step_durations: &[],
+            tempo_unit: PracticeNoteValue::Quarter,
+            tuning_notes: &[4, 9, 2, 7, 11, 4],
+            start_bpm: 80,
+            target_bpm: 110,
+            bpm_step: 5,
+            reps_per_level: 2,
+            count_in_bars: 1,
+            input_mode: InputMode::Midi,
+            position_start: None,
+            window_size: None,
+            scale_run_direction: ScaleRunDirection::Ascending,
+            scale_run_notes_per_string: 3,
+        })
+        .expect("practice plan should build");
+
+        let targets = practice_targets(&plan).expect("targets should build");
+
+        assert_eq!(targets.len(), plan.progression_steps.len() * 4);
+        assert!(targets.iter().all(|target| target.role == PracticeTargetRole::ScaleNote));
     }
 }

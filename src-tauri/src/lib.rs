@@ -7,6 +7,7 @@ use music_engine::api::{
     progression_step_options, solo_notes_for_chord, suggested_progressions, tuning_custom,
     tuning_standard, BeatFeel, BeatStyle, ChordQuality, ConfidenceLevel, InputMode,
     PracticeNoteValue, PracticePlanArgs, PracticePerformedNote, PracticeTargetRole,
+    ScaleRunDirection,
 };
 use music_engine::core::notes::PitchClass;
 use serde::{Deserialize, Serialize};
@@ -194,6 +195,8 @@ pub struct PracticePlanDto {
     pub input_mode: String,
     pub position_start: Option<u8>,
     pub window_size: u8,
+    pub scale_run_direction: String,
+    pub scale_run_notes_per_string: u8,
     pub targets: Vec<PracticeTargetDto>,
 }
 
@@ -340,6 +343,15 @@ fn parse_input_mode(s: &str) -> Result<InputMode, String> {
     }
 }
 
+fn parse_scale_run_direction(s: &str) -> Result<ScaleRunDirection, String> {
+    match s {
+        "ascending" | "up" => Ok(ScaleRunDirection::Ascending),
+        "descending" | "down" => Ok(ScaleRunDirection::Descending),
+        "up_down" | "updown" | "up-down" => Ok(ScaleRunDirection::UpDown),
+        other => Err(format!("Unknown scale run direction: {}", other)),
+    }
+}
+
 fn parse_practice_target_role(s: &str) -> Result<PracticeTargetRole, String> {
     match s {
         "strong_beat" => Ok(PracticeTargetRole::StrongBeat),
@@ -348,6 +360,8 @@ fn parse_practice_target_role(s: &str) -> Result<PracticeTargetRole, String> {
         "passing" => Ok(PracticeTargetRole::Passing),
         "phrase_start" => Ok(PracticeTargetRole::PhraseStart),
         "phrase_answer" => Ok(PracticeTargetRole::PhraseAnswer),
+        "scale_note" => Ok(PracticeTargetRole::ScaleNote),
+        "arpeggio_note" => Ok(PracticeTargetRole::ArpeggioNote),
         other => Err(format!("Unknown practice target role: {}", other)),
     }
 }
@@ -446,6 +460,8 @@ fn build_practice_plan_from_request(
     let input_mode = parse_input_mode(request.input_mode.as_deref().unwrap_or("midi"))?;
     let tuning_notes = request_tuning_notes(&request.tuning_notes)?;
     let progression_steps = request.progression_steps.as_deref().unwrap_or(&[]);
+    let scale_run_direction = parse_scale_run_direction(request.scale_run_direction.as_deref().unwrap_or("ascending"))?;
+    let scale_run_notes_per_string = request.scale_run_notes_per_string.unwrap_or(3);
 
     music_engine::api::build_practice_plan(PracticePlanArgs {
         exercise_id: &request.exercise_id,
@@ -465,6 +481,8 @@ fn build_practice_plan_from_request(
         input_mode,
         position_start: request.position_start,
         window_size: request.window_size,
+        scale_run_direction,
+        scale_run_notes_per_string,
     })
 }
 
@@ -501,6 +519,8 @@ fn practice_plan_dto(plan: music_engine::api::PracticePlan) -> Result<PracticePl
         input_mode: input_mode_id(plan.input_mode),
         position_start: plan.position_start,
         window_size: plan.window_size,
+        scale_run_direction: plan.scale_run_direction.label().to_string(),
+        scale_run_notes_per_string: plan.scale_run_notes_per_string,
         targets,
     })
 }
@@ -830,6 +850,8 @@ pub struct PracticePlanRequest {
     pub input_mode: Option<String>,
     pub position_start: Option<u8>,
     pub window_size: Option<u8>,
+    pub scale_run_direction: Option<String>,
+    pub scale_run_notes_per_string: Option<u8>,
 }
 
 #[tauri::command]
@@ -973,6 +995,8 @@ mod tests {
             input_mode: Some("midi".to_string()),
             position_start: Some(5),
             window_size: Some(5),
+            scale_run_direction: None,
+            scale_run_notes_per_string: None,
         })
         .expect("practice plan should build");
 
@@ -1003,6 +1027,8 @@ mod tests {
             input_mode: Some("midi".to_string()),
             position_start: None,
             window_size: None,
+            scale_run_direction: None,
+            scale_run_notes_per_string: None,
         })
         .expect("practice targets should build");
 

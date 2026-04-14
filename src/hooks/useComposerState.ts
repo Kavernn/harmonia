@@ -24,7 +24,9 @@ const TUNING_PRESETS = buildTuningPresets();
 
 export function useComposerState() {
   const [selectedTuningId, setSelectedTuningId] = usePersistentState("harmonia.tuning-id", "6-E");
-  const [mainView, setMainView] = usePersistentState<"jam" | "practice" | "palettes" | "beat">("harmonia.main-view", "jam");
+  const [mainView, setMainView] = usePersistentState<
+    "jam" | "practice" | "palettes" | "beat" | "riff" | "fretboard" | "dashboard"
+  >("harmonia.main-view", "dashboard");
   const [sidebarCollapsed, setSidebarCollapsed] = usePersistentState("harmonia.sidebar-collapsed", false);
   const [sidebarFilter, setSidebarFilter] = usePersistentState("harmonia.sidebar-filter", "");
   const [tab, setTab] = usePersistentState<"suggest" | "build">("harmonia.progression-tab", "suggest");
@@ -111,6 +113,83 @@ export function useComposerState() {
     stopJam();
     handleActiveStepChange((activeStep - 1 + progression.length) % progression.length);
   }
+
+  const exportRiff = (lines: string[]) => {
+    const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "harmonia-riff.txt";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportRiffMidi = (steps: Array<{ stringIndex: number; fret: number }>, tempo: number) => {
+    const bytes: number[] = [];
+    const push = (...values: number[]) => { bytes.push(...values); };
+    const pushString = (value: string) => { for (const char of value) bytes.push(char.charCodeAt(0)); };
+    const writeUint16 = (value: number) => {
+      push((value >> 8) & 0xff, value & 0xff);
+    };
+    const writeUint32 = (value: number) => {
+      push((value >> 24) & 0xff, (value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff);
+    };
+    pushString("MThd");
+    writeUint32(6);
+    writeUint16(0);
+    writeUint16(1);
+    writeUint16(480);
+
+    const track: number[] = [];
+    const tpush = (...values: number[]) => { track.push(...values); };
+    const twriteVar = (value: number) => {
+      const buffer = [];
+      let val = value;
+      buffer.push(val & 0x7f);
+      while ((val >>= 7)) {
+        buffer.push((val & 0x7f) | 0x80);
+      }
+      for (let i = buffer.length - 1; i >= 0; i -= 1) track.push(buffer[i]);
+    };
+
+    twriteVar(0);
+    tpush(0xff, 0x51, 0x03);
+    const tempoUs = Math.max(1, Math.round(60_000_000 / Math.max(1, tempo)));
+    tpush((tempoUs >> 16) & 0xff, (tempoUs >> 8) & 0xff, tempoUs & 0xff);
+
+    let tick = 0;
+    const stepTicks = 120;
+    const stringMidi = [40, 45, 50, 55, 59, 64, 69];
+
+    steps.forEach((step) => {
+      const base = stringMidi[step.stringIndex] ?? 40;
+      const midi = base + step.fret;
+      twriteVar(tick);
+      tpush(0x90, midi & 0x7f, 0x64);
+      twriteVar(stepTicks);
+      tpush(0x80, midi & 0x7f, 0x40);
+      tick = 0;
+    });
+
+    twriteVar(0);
+    tpush(0xff, 0x2f, 0x00);
+
+    pushString("MTrk");
+    writeUint32(track.length);
+    push(...track);
+
+    const blob = new Blob([new Uint8Array(bytes)], { type: "audio/midi" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "harmonia-riff.mid";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
 
   const {
     currentBeat,
@@ -329,6 +408,11 @@ export function useComposerState() {
       return;
     }
 
+    if (event.key.toLowerCase() === "d") {
+      setMainView("dashboard");
+      return;
+    }
+
     if (event.key.toLowerCase() === "w") {
       setMainView("practice");
       return;
@@ -344,6 +428,16 @@ export function useComposerState() {
       return;
     }
 
+    if (event.key.toLowerCase() === "r") {
+      setMainView("riff");
+      return;
+    }
+
+    if (event.key.toLowerCase() === "m") {
+      setMainView("fretboard");
+      return;
+    }
+
     if (event.key === "[") {
       setSidebarCollapsed((value) => !value);
     }
@@ -355,6 +449,13 @@ export function useComposerState() {
   }, []);
 
   const commandActions: CommandAction[] = [
+    {
+      id: "view-dashboard",
+      label: "Aller à Dashboard",
+      group: "Navigation",
+      keywords: "home overview today",
+      run: () => setMainView("dashboard"),
+    },
     {
       id: "view-jam",
       label: "Aller à Jam",
@@ -396,6 +497,20 @@ export function useComposerState() {
       group: "Navigation",
       keywords: "drums groove beatmaking",
       run: () => setMainView("beat"),
+    },
+    {
+      id: "view-riff",
+      label: "Aller à Riff",
+      group: "Navigation",
+      keywords: "riff composition song sketch",
+      run: () => setMainView("riff"),
+    },
+    {
+      id: "view-fretboard",
+      label: "Aller à Fretboard",
+      group: "Navigation",
+      keywords: "manche positions exercices",
+      run: () => setMainView("fretboard"),
     },
     {
       id: "toggle-sidebar",
@@ -565,6 +680,31 @@ export function useComposerState() {
       onSelectScale: setSelectedScale,
       onSelectCompatibleMode: setSoloPalette,
     },
+    dashboardProps: {
+      lastSession: practiceEngine.lastSessionSummary,
+      bestCleanBpm: practiceEngine.lastSessionSummary?.best_clean_bpm ?? null,
+      streakClean: practiceEngine.consecutiveCleanReps,
+      onOpenPractice: () => setMainView("practice"),
+      onOpenFretboard: () => setMainView("fretboard"),
+      onOpenRiff: () => setMainView("riff"),
+    },
+    fretboardMasteryProps: {
+      harmonyRootName: NOTES[harmonyRoot],
+      harmonyScaleName,
+      selectedScale,
+      selectedTuningName: selectedTuning.name,
+      selectedTuningStrings: selectedTuning.strings,
+      scalePositions,
+    },
+    riffLabProps: {
+      harmonyRootName: NOTES[harmonyRoot],
+      harmonyScaleName,
+      selectedScale,
+      tuningStrings: selectedTuning.strings,
+      scalePositions,
+      onExportRiff: exportRiff,
+      onExportRiffMidi: exportRiffMidi,
+    },
     beatMakerProps: beatComposer.beatPattern ? {
       beatLibrary: beatComposer.beatLibrary,
       beatPattern: beatComposer.beatPattern,
@@ -608,6 +748,8 @@ export function useComposerState() {
       cueEnabled: practiceCueEnabled,
       onToggleCue: () => setPracticeCueEnabled((value) => !value),
       onReplayCue: practiceEngine.replayCue,
+      onNudgeBpm: practiceEngine.nudgeBpm,
+      onSetSoloPalette: setSoloPalette,
       onStartPractice: () => {
         stopJam();
         void practiceEngine.startPractice();

@@ -57,8 +57,8 @@ export function PracticeResultsPanel({ summary }: PracticeResultsPanelProps) {
           fontSize: 11,
           padding: "4px 8px",
           borderRadius: 999,
-          background: summary.reached_target_bpm ? "#E1F5EE" : "#FAECE7",
-          color: summary.reached_target_bpm ? "#0F6E56" : "#993C1D",
+          background: summary.reached_target_bpm ? "var(--color-success-soft)" : "var(--color-danger-soft)",
+          color: summary.reached_target_bpm ? "var(--color-success)" : "var(--color-danger)",
           fontWeight: 700,
         }}>
           {summary.reached_target_bpm ? "tempo cible atteint" : "tempo cible non atteint"}

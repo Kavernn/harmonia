@@ -37,8 +37,8 @@ export function PracticeHistoryPanel({ history, onClear }: PracticeHistoryPanelP
           disabled={history.length === 0}
           style={{
             border: "0.5px solid var(--color-border-tertiary)",
-            background: history.length === 0 ? "#E9E9EE" : "var(--color-background-primary)",
-            color: history.length === 0 ? "#7A7A86" : "var(--color-text-secondary)",
+            background: history.length === 0 ? "var(--color-background-secondary)" : "var(--color-background-primary)",
+            color: history.length === 0 ? "var(--color-text-tertiary)" : "var(--color-text-secondary)",
             borderRadius: "var(--border-radius-md)",
             padding: "8px 10px",
             fontSize: 11,

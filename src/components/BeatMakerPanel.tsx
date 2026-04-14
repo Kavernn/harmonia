@@ -40,9 +40,9 @@ export function BeatMakerPanel({
           const active = selectedBeatStyle === pattern.style_id;
           return (
             <button key={pattern.style_id} onClick={() => onSelectBeatStyle(pattern.style_id)} style={{
-              border: active ? "1.5px solid #534AB7" : "0.5px solid var(--color-border-tertiary)",
-              background: active ? "#EEEDFE" : "var(--color-background-primary)",
-              color: active ? "#3C3489" : "var(--color-text-secondary)",
+              border: active ? "1.5px solid var(--color-accent-primary)" : "0.5px solid var(--color-border-tertiary)",
+              background: active ? "var(--color-accent-soft)" : "var(--color-background-primary)",
+              color: active ? "var(--color-accent-strong)" : "var(--color-text-secondary)",
               borderRadius: "var(--border-radius-md)", padding: "7px 10px", fontSize: 11,
               cursor: "pointer", fontWeight: active ? 500 : 400,
             }}>{pattern.style}</button>
@@ -109,15 +109,16 @@ export function BeatMakerPanel({
                 const event = beatPattern.events.find((item) => item.voice === voice && item.step === step);
                 const active = Boolean(event);
                 const velocityLabel = !event ? "empty" : event.velocity < 72 ? "soft" : event.velocity < 108 ? "normal" : "accent";
+                const accentAlpha = Math.max(0.2, (event?.velocity ?? 0) / 127);
                 return (
                   <button key={step} type="button" onClick={() => onCycleBeatStep(voice, step)} title={`${voice} · step ${step + 1} · ${velocityLabel}${event ? ` · vel ${event.velocity}` : ""}`} style={{
                     height: 18,
                     borderRadius: 4,
-                    border: step % 4 === 0 ? "1px solid #8D86D9" : "0.5px solid var(--color-border-tertiary)",
+                    border: step % 4 === 0 ? "1px solid var(--color-accent-primary)" : "0.5px solid var(--color-border-tertiary)",
                     background: active
-                      ? `rgba(83, 74, 183, ${Math.max(0.2, (event?.velocity ?? 0) / 127)})`
+                      ? `rgba(31, 202, 211, ${accentAlpha})`
                       : "var(--color-background-primary)",
-                    boxShadow: active && event && event.velocity >= 108 ? "0 0 0 1px rgba(83, 74, 183, 0.22) inset" : "none",
+                    boxShadow: active && event && event.velocity >= 108 ? "0 0 0 1px rgba(31, 202, 211, 0.28) inset" : "none",
                     cursor: "pointer",
                     padding: 0,
                   }}/>

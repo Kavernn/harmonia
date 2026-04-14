@@ -51,6 +51,23 @@ impl PracticeNoteValue {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScaleRunDirection {
+    Ascending,
+    Descending,
+    UpDown,
+}
+
+impl ScaleRunDirection {
+    pub fn label(self) -> &'static str {
+        match self {
+            ScaleRunDirection::Ascending => "ascending",
+            ScaleRunDirection::Descending => "descending",
+            ScaleRunDirection::UpDown => "up_down",
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct PracticePlan {
     pub exercise: PracticeExercise,
@@ -70,6 +87,8 @@ pub struct PracticePlan {
     pub input_mode: InputMode,
     pub position_start: Option<u8>,
     pub window_size: u8,
+    pub scale_run_direction: ScaleRunDirection,
+    pub scale_run_notes_per_string: u8,
 }
 
 impl PracticePlan {
@@ -123,6 +142,8 @@ pub struct PracticePlanArgs<'a> {
     pub input_mode: InputMode,
     pub position_start: Option<u8>,
     pub window_size: Option<u8>,
+    pub scale_run_direction: ScaleRunDirection,
+    pub scale_run_notes_per_string: u8,
 }
 
 pub fn build_practice_plan(args: PracticePlanArgs<'_>) -> Result<PracticePlan, String> {
@@ -163,6 +184,8 @@ pub fn build_practice_plan(args: PracticePlanArgs<'_>) -> Result<PracticePlan, S
         input_mode: args.input_mode,
         position_start: args.position_start,
         window_size,
+        scale_run_direction: args.scale_run_direction,
+        scale_run_notes_per_string: args.scale_run_notes_per_string.clamp(2, 4),
     })
 }
 
@@ -191,6 +214,8 @@ mod tests {
             input_mode: InputMode::Midi,
             position_start: None,
             window_size: None,
+            scale_run_direction: ScaleRunDirection::Ascending,
+            scale_run_notes_per_string: 3,
         })
         .expect("practice plan should build");
 

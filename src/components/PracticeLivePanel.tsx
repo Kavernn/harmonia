@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { noteValue, type FretPosition, type ProgressionChord, type ScaleSuggestion } from "../music";
 import type { PracticePlan, PracticeRepScore, PracticeTarget } from "../practice";
 import type { PracticePhase } from "../hooks/usePracticeEngine";
@@ -12,6 +12,11 @@ interface PracticeLivePanelProps {
   selectedScale: ScaleSuggestion | null;
   scalePositions: FretPosition[];
   tuningStrings: string[];
+  scalePositionIndex?: number | null;
+  scalePositionCount?: number | null;
+  minimalView?: boolean;
+  trainingOnly?: boolean;
+  tabOnlyView?: boolean;
   currentBpm: number;
   currentStepIndex: number;
   currentPulse: number;
@@ -29,6 +34,7 @@ interface PracticeLivePanelProps {
   cueEnabled: boolean;
   onToggleCue: () => void;
   onReplayCue: () => void;
+  onNudgeBpm: (delta: number) => void;
   onStartPractice: () => void;
   onStopPractice: () => void;
 }
@@ -67,8 +73,76 @@ function isResolutionRole(role: string) {
   return role === "resolution" || role === "phrase_answer";
 }
 
+function tempoPulseMultiplier(tempoUnit: string | undefined) {
+  switch (tempoUnit) {
+    case "whole":
+      return 16;
+    case "half":
+      return 8;
+    case "quarter":
+      return 4;
+    case "eighth":
+      return 2;
+    case "sixteenth":
+      return 1;
+    default:
+      return 4;
+  }
+}
+
 function uniquePitchClasses(targets: PracticeTarget[]) {
   return Array.from(new Set(targets.flatMap((target) => target.pitch_classes)));
+}
+
+function buildScaleTabSequence(
+  positions: FretPosition[],
+  stringCount: number,
+  windowStart: number,
+  windowSize: number,
+  notesPerString: number,
+  direction: "ascending" | "descending" | "up_down",
+) {
+  const windowEnd = windowStart + windowSize;
+  const sequence: Array<{ stringIndex: number; fret: number; note: string }> = [];
+  const pickStrokes: string[] = [];
+  let pickIndex = 0;
+
+  const stringOrder = direction === "descending"
+    ? Array.from({ length: stringCount }, (_, i) => stringCount - 1 - i)
+    : Array.from({ length: stringCount }, (_, i) => i);
+
+  for (const stringIndex of stringOrder) {
+    const stringPositions = positions
+      .filter((position) =>
+        position.string === stringIndex
+        && position.fret >= windowStart
+        && position.fret <= windowEnd
+        && !position.is_avoid
+      )
+      .sort((a, b) => direction === "descending" ? b.fret - a.fret : a.fret - b.fret)
+      .slice(0, notesPerString);
+
+    stringPositions.forEach((position) => {
+      sequence.push({
+        stringIndex,
+        fret: position.fret,
+        note: position.note,
+      });
+      pickStrokes.push(pickIndex % 2 === 0 ? "v" : "^");
+      pickIndex += 1;
+    });
+  }
+
+  if (direction === "up_down") {
+    const down = sequence.slice(0, -1).reverse();
+    const downPicks = pickStrokes.slice(0, -1).reverse();
+    return {
+      steps: [...sequence, ...down],
+      picks: [...pickStrokes, ...downPicks],
+    };
+  }
+
+  return { steps: sequence, picks: pickStrokes };
 }
 
 function parseMissedTarget(line: string | undefined) {
@@ -125,6 +199,11 @@ export function PracticeLivePanel({
   selectedScale,
   scalePositions,
   tuningStrings,
+  scalePositionIndex,
+  scalePositionCount,
+  minimalView = false,
+  trainingOnly = false,
+  tabOnlyView = false,
   currentBpm,
   currentStepIndex,
   currentPulse,
@@ -142,6 +221,7 @@ export function PracticeLivePanel({
   cueEnabled,
   onToggleCue,
   onReplayCue,
+  onNudgeBpm,
   onStartPractice,
   onStopPractice,
 }: PracticeLivePanelProps) {
@@ -152,8 +232,8 @@ export function PracticeLivePanel({
   const latestRepLabelColor = !lastRepScore
     ? "var(--color-text-primary)"
     : lastRepScore.clean_rep
-      ? "#0F6E56"
-      : "#9A3F1D";
+      ? "var(--color-success)"
+      : "var(--color-danger)";
   const fallbackTargets = useMemo(
     () => (plan ? plan.targets.filter((target) => target.step_index === currentStepIndex && target.pulse_index === 0) : []),
     [currentStepIndex, plan],
@@ -211,9 +291,129 @@ export function PracticeLivePanel({
   );
   const weakest = useMemo(() => weakestArea(lastRepScore), [lastRepScore]);
   const focusTarget = focusTargets[0] ?? null;
+  const scaleWorkoutActive = plan?.exercise_id === "scale-speed-picking";
+  const scaleTabData = useMemo(() => {
+    if (!scaleWorkoutActive) return { steps: [], picks: [] } as const;
+    return buildScaleTabSequence(
+      sanitizedScalePositions,
+      tuningStrings.length,
+      practiceWindowStart,
+      practiceWindowSize,
+      plan?.scale_run_notes_per_string ?? 3,
+      plan?.scale_run_direction ?? "ascending",
+    );
+  }, [
+    scaleWorkoutActive,
+    sanitizedScalePositions,
+    tuningStrings.length,
+    practiceWindowStart,
+    practiceWindowSize,
+    plan?.scale_run_direction,
+    plan?.scale_run_notes_per_string,
+  ]);
+  const scaleTabSteps = scaleTabData.steps;
+  const scaleTabPicks = scaleTabData.picks;
+  const tabStrings = tuningStrings.map((label, index) => ({ label, index })).slice().reverse();
+  const tabActiveIndex = phase === "running" && scaleTabSteps.length > 0
+    ? currentPulse % scaleTabSteps.length
+    : -1;
+  const [tabZoom, setTabZoom] = useState(1);
+  const [tabGlide, setTabGlide] = useState(true);
+  const tabScrollRef = useRef<HTMLDivElement | null>(null);
+  const tabHighlightRef = useRef<HTMLDivElement | null>(null);
+  const glideFrameRef = useRef<number | null>(null);
+  const glidePulseStartRef = useRef<number>(0);
+  const tabColWidth = Math.round(26 * tabZoom);
+  const tabRowHeight = Math.round(22 * tabZoom);
+  const tabHeaderHeight = Math.round(18 * tabZoom);
+  const tabStepStride = tabColWidth + 4;
+  const tabLeadOffset = 44;
+  const barLength = 4;
+  const npsValue = plan?.scale_run_notes_per_string ?? 3;
+  const notesPerBar = Math.max(1, barLength * npsValue);
+  const notesPerMinute = scaleWorkoutActive
+    ? Math.round(displayedBpm * tempoPulseMultiplier(plan?.tempo_unit))
+    : null;
+  const tabActiveBar = tabActiveIndex >= 0 ? Math.floor(tabActiveIndex / notesPerBar) : -1;
+  const scalePositionLabel = scaleWorkoutActive && plan
+    ? `Position ${scalePositionIndex ?? "—"}/${scalePositionCount ?? "—"} · frets ${practiceWindowStart}-${practiceWindowStart + practiceWindowSize}`
+    : null;
   const paletteLabel = selectedScale
     ? `${selectedScale.scale_root} ${selectedScale.scale_name}`
     : (plan ? `${plan.solo_scale_root} ${plan.solo_scale_name}` : "—");
+  const ultraMinimal = minimalView && trainingOnly;
+  const isTabOnly = tabOnlyView || (minimalView && trainingOnly && scaleWorkoutActive);
+  const techniqueLabel = scaleWorkoutActive
+    ? plan?.exercise_id === "economy-picking-flow"
+      ? "Economy picking"
+      : plan?.exercise_id === "sweep-picking-arpeggios"
+        ? "Sweep picking"
+        : plan?.exercise_id === "alternate-picking-foundation"
+          ? "Alternate picking"
+          : "Scale run"
+    : null;
+  const techniqueTip = scaleWorkoutActive
+    ? plan?.exercise_id === "economy-picking-flow"
+      ? "Garde la direction du médiator sur le changement de corde."
+      : plan?.exercise_id === "sweep-picking-arpeggios"
+        ? "Un seul mouvement continu, laisse sonner chaque note."
+        : plan?.exercise_id === "alternate-picking-foundation"
+          ? "Down-up strict, attaque régulière."
+          : "Focus sur la régularité du flow."
+    : null;
+
+  useEffect(() => {
+    glidePulseStartRef.current = performance.now();
+  }, [tabActiveIndex]);
+
+  useEffect(() => {
+    if (!tabScrollRef.current || tabActiveIndex < 0) return;
+    if (tabGlide) return;
+    const container = tabScrollRef.current;
+    const targetX = tabLeadOffset + (tabActiveIndex * tabStepStride) + (tabColWidth / 2);
+    const nextScrollLeft = Math.max(0, targetX - (container.clientWidth / 2));
+    const scrollPadding = tabColWidth * 6;
+    const visibleStart = container.scrollLeft + scrollPadding;
+    const visibleEnd = container.scrollLeft + container.clientWidth - scrollPadding;
+    if (targetX < visibleStart || targetX > visibleEnd) {
+      container.scrollTo({ left: nextScrollLeft, behavior: "smooth" });
+    }
+    if (tabHighlightRef.current) {
+      tabHighlightRef.current.style.transform = `translateX(${tabLeadOffset + tabActiveIndex * tabStepStride}px)`;
+    }
+  }, [tabActiveIndex, tabColWidth, tabGlide, tabLeadOffset, tabStepStride]);
+
+  useEffect(() => {
+    if (!tabScrollRef.current || tabActiveIndex < 0 || !tabGlide) return;
+
+    const container = tabScrollRef.current;
+    const bpm = Math.max(1, displayedBpm || 1);
+    const pulsesPerQuarter = tempoPulseMultiplier(plan?.tempo_unit) / 4;
+    const pulseDurationMs = (60_000 / bpm) / Math.max(1, pulsesPerQuarter);
+
+    const tick = () => {
+      const now = performance.now();
+      const progress = Math.min(1, Math.max(0, (now - glidePulseStartRef.current) / pulseDurationMs));
+      const startX = tabLeadOffset + (tabActiveIndex * tabStepStride) + (tabColWidth / 2);
+      const nextX = tabLeadOffset + ((tabActiveIndex + 1) * tabStepStride) + (tabColWidth / 2);
+      const targetX = startX + (nextX - startX) * progress;
+      const nextScrollLeft = Math.max(0, targetX - (container.clientWidth / 2));
+      container.scrollLeft = nextScrollLeft;
+      if (tabHighlightRef.current) {
+        tabHighlightRef.current.style.transform = `translateX(${tabLeadOffset + (tabActiveIndex + progress) * tabStepStride}px)`;
+      }
+      glideFrameRef.current = requestAnimationFrame(tick);
+    };
+
+    glideFrameRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (glideFrameRef.current != null) {
+        cancelAnimationFrame(glideFrameRef.current);
+        glideFrameRef.current = null;
+      }
+    };
+  }, [tabActiveIndex, tabColWidth, tabGlide, displayedBpm, plan?.tempo_unit, tabLeadOffset, tabStepStride]);
 
   return (
     <div style={{
@@ -225,7 +425,8 @@ export function PracticeLivePanel({
       flexDirection: "column",
       gap: 14,
     }}>
-      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+      {!isTabOnly && (
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <div>
           <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 4 }}>
             Practice live
@@ -238,26 +439,26 @@ export function PracticeLivePanel({
               fontSize: 11,
               padding: "4px 8px",
               borderRadius: 999,
-              background: phase === "running" ? "#E1F5EE" : phase === "count_in" ? "#FFF2DA" : "#EEEDFE",
-              color: phase === "running" ? "#0F6E56" : phase === "count_in" ? "#6D4600" : "#3C3489",
+              background: phase === "running" ? "var(--color-success-soft)" : phase === "count_in" ? "var(--color-warning-soft)" : "var(--color-accent-soft)",
+              color: phase === "running" ? "var(--color-success)" : phase === "count_in" ? "var(--color-warning)" : "var(--color-accent-strong)",
             }}>
               {midiStatusLabel(midiStatus)}
             </span>
           </div>
-          {plan && (
+          {!ultraMinimal && plan && (
             <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 4 }}>
               {plan.exercise_name} · {displayedBpm} BPM · {plan.tempo_unit}
             </div>
           )}
-          {plan && (
+          {!ultraMinimal && plan && (
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
-              <span style={{ fontSize: 10, padding: "4px 8px", borderRadius: 999, background: "#EEEDFE", color: "#3C3489", fontWeight: 600 }}>
+              <span style={{ fontSize: 10, padding: "4px 8px", borderRadius: 999, background: "var(--color-accent-soft)", color: "var(--color-accent-strong)", fontWeight: 600 }}>
                 {plan.category}
               </span>
-              <span style={{ fontSize: 10, padding: "4px 8px", borderRadius: 999, background: "#E6F1FB", color: "#185FA5", fontWeight: 600 }}>
+              <span style={{ fontSize: 10, padding: "4px 8px", borderRadius: 999, background: "var(--color-accent-soft)", color: "var(--color-accent-primary)", fontWeight: 600 }}>
                 {plan.goal}
               </span>
-              <span style={{ fontSize: 10, padding: "4px 8px", borderRadius: 999, background: "#E1F5EE", color: "#0F6E56", fontWeight: 600 }}>
+              <span style={{ fontSize: 10, padding: "4px 8px", borderRadius: 999, background: "var(--color-success-soft)", color: "var(--color-success)", fontWeight: 600 }}>
                 {plan.target_strategy}
               </span>
             </div>
@@ -265,12 +466,34 @@ export function PracticeLivePanel({
         </div>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>Tempo</span>
+            <div style={{ display: "flex", gap: 4 }}>
+              {[-5, -1, 1, 5].map((delta) => (
+                <button
+                  key={delta}
+                  onClick={() => onNudgeBpm(delta)}
+                  style={{
+                    border: "0.5px solid var(--color-border-tertiary)",
+                    background: "var(--color-background-primary)",
+                    color: "var(--color-text-secondary)",
+                    borderRadius: "var(--border-radius-sm)",
+                    padding: "2px 6px",
+                    fontSize: 10,
+                    cursor: "pointer",
+                  }}
+                >
+                  {delta > 0 ? `+${delta}` : delta}
+                </button>
+              ))}
+            </div>
+          </div>
           <button
             onClick={onToggleCue}
             style={{
               border: "0.5px solid var(--color-border-tertiary)",
-              background: cueEnabled ? "#EEEDFE" : "var(--color-background-primary)",
-              color: cueEnabled ? "#3C3489" : "var(--color-text-secondary)",
+              background: cueEnabled ? "var(--color-accent-soft)" : "var(--color-background-primary)",
+              color: cueEnabled ? "var(--color-accent-strong)" : "var(--color-text-secondary)",
               borderRadius: "var(--border-radius-md)",
               padding: "8px 10px",
               fontSize: 11,
@@ -301,9 +524,9 @@ export function PracticeLivePanel({
             <button
               onClick={onStopPractice}
               style={{
-                border: "1px solid #C84A21",
-                background: "#FBEDE8",
-                color: "#9A3F1D",
+                border: "1px solid var(--color-danger)",
+                background: "var(--color-danger-soft)",
+                color: "var(--color-danger)",
                 borderRadius: "var(--border-radius-md)",
                 padding: "8px 12px",
                 fontSize: 11,
@@ -318,9 +541,9 @@ export function PracticeLivePanel({
               onClick={onStartPractice}
               disabled={!canStart}
               style={{
-                border: "1px solid #534AB7",
-                background: !canStart ? "#E9E9EE" : "#534AB7",
-                color: !canStart ? "#7A7A86" : "#EEEDFE",
+                border: "1px solid var(--color-accent-primary)",
+                background: !canStart ? "var(--color-background-tertiary)" : "var(--color-accent-primary)",
+                color: !canStart ? "var(--color-text-tertiary)" : "var(--color-accent-contrast)",
                 borderRadius: "var(--border-radius-md)",
                 padding: "8px 12px",
               fontSize: 11,
@@ -333,139 +556,198 @@ export function PracticeLivePanel({
           )}
         </div>
       </div>
+      )}
 
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        gap: 12,
-        flexWrap: "wrap",
-        padding: "10px 12px",
-        border: "0.5px solid var(--color-border-tertiary)",
-        borderRadius: "var(--border-radius-md)",
-        background: "var(--color-background-secondary)",
-      }}>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-          <span style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
-            Progression — {progression.map((step) => step.display_name).join(" · ") || "—"}
-          </span>
-          <span style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
-            Solo palette — {paletteLabel}
-          </span>
+      {scaleWorkoutActive && !ultraMinimal && !isTabOnly && (
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+          gap: 8,
+          padding: "10px 12px",
+          border: "0.5px solid var(--color-border-tertiary)",
+          borderRadius: "var(--border-radius-md)",
+          background: "var(--color-background-secondary)",
+        }}>
+          <div>
+            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>BPM</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 4 }}>
+              {displayedBpm}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>Notes/min</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-success)", marginTop: 4 }}>
+              {notesPerMinute ?? "—"}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>Streak clean</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-accent-strong)", marginTop: 4 }}>
+              {consecutiveCleanReps}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>Pattern</div>
+            <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 6 }}>
+              {plan?.scale_run_direction ?? "ascending"} · {npsValue} NPS
+            </div>
+            {scalePositionLabel && (
+              <div style={{ fontSize: 10, color: "var(--color-text-tertiary)", marginTop: 6 }}>
+                {scalePositionLabel}
+              </div>
+            )}
+            {techniqueLabel && (
+              <div style={{ fontSize: 10, color: "var(--color-accent-primary)", marginTop: 6, fontWeight: 600 }}>
+                {techniqueLabel}
+              </div>
+            )}
+            {techniqueTip && (
+              <div style={{ fontSize: 10, color: "var(--color-text-tertiary)", marginTop: 4 }}>
+                {techniqueTip}
+              </div>
+            )}
+          </div>
         </div>
-        <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
-          Box {practiceWindowStart + 1}–{practiceWindowStart + practiceWindowSize} · {tuningStrings.join(" · ")}
+      )}
+
+      {!trainingOnly && !isTabOnly && (
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 12,
+          flexWrap: "wrap",
+          padding: "10px 12px",
+          border: "0.5px solid var(--color-border-tertiary)",
+          borderRadius: "var(--border-radius-md)",
+          background: "var(--color-background-secondary)",
+        }}>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+            <span style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
+              Progression — {progression.map((step) => step.display_name).join(" · ") || "—"}
+            </span>
+            <span style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
+              Solo palette — {paletteLabel}
+            </span>
+          </div>
+          <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
+            Box {practiceWindowStart + 1}–{practiceWindowStart + practiceWindowSize} · {tuningStrings.join(" · ")}
+          </div>
         </div>
-      </div>
+      )}
 
-      <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 2 }}>
-        {progression.map((step, index) => {
-          const active = index === currentStepIndex && phase === "running";
-          const hasTarget = focusTargets.some((target) => target.step_index === index);
-          const duration = noteValue(plan?.step_durations[index] ?? "quarter");
+      {!minimalView && !isTabOnly && (
+        <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 2 }}>
+          {progression.map((step, index) => {
+            const active = index === currentStepIndex && phase === "running";
+            const hasTarget = focusTargets.some((target) => target.step_index === index);
+            const duration = noteValue(plan?.step_durations[index] ?? "quarter");
 
-          return (
-            <div
-              key={`${step.roman}-${index}`}
-              style={{
-                minWidth: 124,
-                border: active ? "2px solid #534AB7" : hasTarget ? "1.5px solid #185FA5" : "0.5px solid var(--color-border-tertiary)",
-                background: active ? "#534AB7" : hasTarget ? "#E6F1FB" : "var(--color-background-secondary)",
-                color: active ? "#EEEDFE" : hasTarget ? "#185FA5" : "var(--color-text-primary)",
-                borderRadius: "var(--border-radius-md)",
-                padding: "10px 11px",
-                flexShrink: 0,
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-                <div style={{ fontSize: 10, color: active ? "#D8D3FF" : "var(--color-text-tertiary)" }}>
-                  {step.roman}
+            return (
+              <div
+                key={`${step.roman}-${index}`}
+                style={{
+                  minWidth: 124,
+                  border: active ? "2px solid var(--color-accent-primary)" : hasTarget ? "1.5px solid var(--color-accent-primary)" : "0.5px solid var(--color-border-tertiary)",
+                  background: active ? "var(--color-accent-primary)" : hasTarget ? "var(--color-accent-soft)" : "var(--color-background-secondary)",
+                  color: active ? "var(--color-accent-contrast)" : hasTarget ? "var(--color-accent-primary)" : "var(--color-text-primary)",
+                  borderRadius: "var(--border-radius-md)",
+                  padding: "10px 11px",
+                  flexShrink: 0,
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
+                  <div style={{ fontSize: 10, color: active ? "var(--color-accent-contrast)" : "var(--color-text-tertiary)" }}>
+                    {step.roman}
+                  </div>
+                  <span style={{
+                    borderRadius: 999,
+                    padding: "2px 6px",
+                    fontSize: 9,
+                    fontWeight: 700,
+                    background: active ? "var(--color-accent-soft)" : "var(--color-background-tertiary)",
+                    color: active ? "var(--color-accent-strong)" : hasTarget ? "var(--color-accent-primary)" : "var(--color-text-secondary)",
+                  }}>
+                    {duration.symbol} {duration.short}
+                  </span>
                 </div>
-                <span style={{
-                  borderRadius: 999,
-                  padding: "2px 6px",
-                  fontSize: 9,
-                  fontWeight: 700,
-                  background: active ? "#EEEDFE" : "rgba(255,255,255,0.7)",
-                  color: active ? "#3C3489" : hasTarget ? "#185FA5" : "var(--color-text-secondary)",
-                }}>
-                  {duration.symbol} {duration.short}
-                </span>
+                <div style={{ fontSize: 15, fontWeight: 700, marginTop: 5 }}>
+                  {step.display_name}
+                </div>
+                <div style={{ fontSize: 10, color: active ? "var(--color-accent-contrast)" : "var(--color-text-tertiary)", marginTop: 5 }}>
+                  {step.chord_tones.join(" · ")}
+                </div>
+                {hasTarget && (
+                  <div style={{ fontSize: 10, color: active ? "var(--color-accent-contrast)" : "var(--color-accent-primary)", marginTop: 6, fontWeight: 600 }}>
+                    Target maintenant
+                  </div>
+                )}
               </div>
-              <div style={{ fontSize: 15, fontWeight: 700, marginTop: 5 }}>
-                {step.display_name}
+            );
+          })}
+        </div>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: minimalView || isTabOnly ? "1fr" : "minmax(250px, 320px) 1fr", gap: 12, alignItems: "start" }}>
+        {!minimalView && !isTabOnly && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{
+              border: "0.5px solid var(--color-border-tertiary)",
+              borderRadius: "var(--border-radius-md)",
+              padding: "12px",
+              background: "var(--color-background-secondary)",
+            }}>
+              <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+                Focus now
               </div>
-              <div style={{ fontSize: 10, color: active ? "#D8D3FF" : "var(--color-text-tertiary)", marginTop: 5 }}>
-                {step.chord_tones.join(" · ")}
+              <div style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 6 }}>
+                {focusTarget ? focusTarget.chord_name : (currentChord?.display_name ?? "—")}
               </div>
-              {hasTarget && (
-                <div style={{ fontSize: 10, color: active ? "#EEEDFE" : "#185FA5", marginTop: 6, fontWeight: 600 }}>
-                  Target maintenant
+              <div style={{ fontSize: 12, color: "var(--color-accent-strong)", marginTop: 6, fontWeight: 600 }}>
+                {focusTarget
+                  ? `${humanizeRole(focusTarget.role)} · ${focusTarget.pitch_classes.join(" · ")}`
+                  : "Prépare la première cible du cycle."}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 6 }}>
+                {focusTarget?.description ?? "Le manche te montre la box active, les ancrages d'accord et la cible du moment."}
+              </div>
+              {nextResolutionTarget && (
+                <div style={{ fontSize: 11, color: "var(--color-accent-primary)", marginTop: 8 }}>
+                  Prochaine résolution: {nextResolutionTarget.chord_name} · {nextResolutionTarget.pitch_classes.join(" · ")}
                 </div>
               )}
             </div>
-          );
-        })}
-      </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "minmax(250px, 320px) 1fr", gap: 12, alignItems: "start" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          <div style={{
-            border: "0.5px solid var(--color-border-tertiary)",
-            borderRadius: "var(--border-radius-md)",
-            padding: "12px",
-            background: "var(--color-background-secondary)",
-          }}>
-            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
-              Focus now
-            </div>
-            <div style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 6 }}>
-              {focusTarget ? focusTarget.chord_name : (currentChord?.display_name ?? "—")}
-            </div>
-            <div style={{ fontSize: 12, color: "#3C3489", marginTop: 6, fontWeight: 600 }}>
-              {focusTarget
-                ? `${humanizeRole(focusTarget.role)} · ${focusTarget.pitch_classes.join(" · ")}`
-                : "Prépare la première cible du cycle."}
-            </div>
-            <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 6 }}>
-              {focusTarget?.description ?? "Le manche te montre la box active, les ancrages d'accord et la cible du moment."}
-            </div>
-            {nextResolutionTarget && (
-              <div style={{ fontSize: 11, color: "#185FA5", marginTop: 8 }}>
-                Prochaine résolution: {nextResolutionTarget.chord_name} · {nextResolutionTarget.pitch_classes.join(" · ")}
+            <div style={{
+              border: "0.5px solid var(--color-border-tertiary)",
+              borderRadius: "var(--border-radius-md)",
+              padding: "12px",
+              background: "var(--color-background-secondary)",
+            }}>
+              <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+                Corrige maintenant
               </div>
-            )}
-          </div>
-
-          <div style={{
-            border: "0.5px solid var(--color-border-tertiary)",
-            borderRadius: "var(--border-radius-md)",
-            padding: "12px",
-            background: "var(--color-background-secondary)",
-          }}>
-            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
-              Corrige maintenant
-            </div>
-            {weakest ? (
-              <>
-                <div style={{ fontSize: 16, fontWeight: 700, color: latestRepLabelColor, marginTop: 6 }}>
-                  {weakest.label} · {weakest.score}
-                </div>
+              {weakest ? (
+                <>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: latestRepLabelColor, marginTop: 6 }}>
+                    {weakest.label} · {weakest.score}
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 6 }}>
+                    {weakest.advice}
+                  </div>
+                </>
+              ) : (
                 <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 6 }}>
-                  {weakest.advice}
+                  Lance une rep pour obtenir un retour ciblé.
                 </div>
-              </>
-            ) : (
-              <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 6 }}>
-                Lance une rep pour obtenir un retour ciblé.
-              </div>
-            )}
-            {missedTarget && (
-              <div style={{ marginTop: 8, fontSize: 11, color: "#9A3F1D" }}>
-                Cible manquée: {missedTarget.chord} · pulse {missedTarget.pulse} · {missedTarget.role} · attendu {missedTarget.expected}
-              </div>
-            )}
+              )}
+              {missedTarget && (
+                <div style={{ marginTop: 8, fontSize: 11, color: "var(--color-danger)" }}>
+                  Cible manquée: {missedTarget.chord} · pulse {missedTarget.pulse} · {missedTarget.role} · attendu {missedTarget.expected}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         <div style={{
           border: "0.5px solid var(--color-border-tertiary)",
@@ -512,186 +794,424 @@ export function PracticeLivePanel({
             showPhraseGuide={false}
             stringLabels={tuningStrings}
           />
-        </div>
-      </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr 1fr", gap: 12 }}>
-        <div style={{
-          border: "0.5px solid var(--color-border-tertiary)",
-          borderRadius: "var(--border-radius-md)",
-          padding: "12px",
-          background: "var(--color-background-secondary)",
-        }}>
-          <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
-            Maintenant
-          </div>
-          {phase === "count_in" ? (
-            <>
-              <div style={{ fontSize: 26, fontWeight: 700, color: "#6D4600", marginTop: 6 }}>
-                {countInBeat}
+          {scaleWorkoutActive && scaleTabSteps.length > 0 && (
+            <div style={{
+              marginTop: 12,
+              padding: 10,
+              border: "0.5px solid var(--color-border-tertiary)",
+              borderRadius: "var(--border-radius-lg)",
+              background: "linear-gradient(180deg, rgba(26, 33, 44, 0.96) 0%, rgba(18, 24, 33, 0.96) 100%)",
+            }}>
+              {!isTabOnly && (
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                  <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
+                    Tab scale workout
+                  </div>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                    <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
+                      {plan?.scale_run_direction ?? "ascending"} · {plan?.scale_run_notes_per_string ?? 3} NPS · {practiceWindowSize} frettes
+                    </div>
+                    <button
+                      onClick={() => setTabGlide((value) => !value)}
+                      style={{
+                        border: "0.5px solid var(--color-border-tertiary)",
+                        background: tabGlide ? "var(--color-success-soft)" : "var(--color-background-primary)",
+                        color: tabGlide ? "var(--color-success)" : "var(--color-text-secondary)",
+                        borderRadius: "var(--border-radius-md)",
+                        padding: "4px 8px",
+                        fontSize: 10,
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Glide {tabGlide ? "on" : "off"}
+                    </button>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      <button
+                        onClick={() => setTabZoom((value) => Math.max(0.8, Number((value - 0.1).toFixed(2))))}
+                        style={{
+                          border: "0.5px solid var(--color-border-tertiary)",
+                          background: "var(--color-background-primary)",
+                          color: "var(--color-text-secondary)",
+                          borderRadius: "var(--border-radius-sm)",
+                          padding: "2px 6px",
+                          fontSize: 10,
+                          cursor: "pointer",
+                        }}
+                      >
+                        −
+                      </button>
+                      <input
+                        type="range"
+                        min={0.8}
+                        max={1.4}
+                        step={0.05}
+                        value={tabZoom}
+                        onChange={(event) => setTabZoom(Number(event.target.value))}
+                        style={{ width: 90 }}
+                      />
+                      <button
+                        onClick={() => setTabZoom((value) => Math.min(1.4, Number((value + 0.1).toFixed(2))))}
+                        style={{
+                          border: "0.5px solid var(--color-border-tertiary)",
+                          background: "var(--color-background-primary)",
+                          color: "var(--color-text-secondary)",
+                          borderRadius: "var(--border-radius-sm)",
+                          padding: "2px 6px",
+                          fontSize: 10,
+                          cursor: "pointer",
+                        }}
+                      >
+                        +
+                      </button>
+                      <span style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+                        {Math.round(tabZoom * 100)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div style={{ marginTop: isTabOnly ? 0 : 8, position: "relative" }}>
+                <div style={{
+                  position: "absolute",
+                  top: 0,
+                  bottom: 0,
+                  left: "50%",
+                  width: 2,
+                  background: "rgba(31, 202, 211, 0.45)",
+                  transform: "translateX(-1px)",
+                  zIndex: 3,
+                }} />
+                <div
+                  ref={tabScrollRef}
+                  style={{
+                    overflowX: "auto",
+                    overflowY: "hidden",
+                    padding: "6px 4px 10px",
+                    scrollBehavior: "smooth",
+                    background: "rgba(15, 20, 28, 0.72)",
+                    border: "1px solid rgba(42, 51, 64, 0.5)",
+                    borderRadius: 12,
+                    backdropFilter: "blur(8px)",
+                  }}
+                >
+                  <div style={{ position: "relative" }}>
+                    <div
+                      ref={tabHighlightRef}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        bottom: 0,
+                        left: 0,
+                        width: tabColWidth,
+                        borderRadius: 8,
+                        background: "linear-gradient(180deg, rgba(31, 202, 211, 0.2) 0%, rgba(31, 202, 211, 0.35) 100%)",
+                        boxShadow: "0 0 0 1px rgba(31, 202, 211, 0.45)",
+                        pointerEvents: "none",
+                        transform: `translateX(${tabLeadOffset + Math.max(0, tabActiveIndex) * tabStepStride}px)`,
+                      }}
+                    />
+                    <div style={{
+                      display: "grid",
+                      gridTemplateColumns: `40px repeat(${scaleTabSteps.length}, ${tabColWidth}px)`,
+                      gridTemplateRows: `${tabHeaderHeight}px ${tabHeaderHeight}px repeat(${tabStrings.length}, ${tabRowHeight}px)`,
+                      gap: 4,
+                      alignItems: "center",
+                      minWidth: `${40 + scaleTabSteps.length * (tabColWidth + 4)}px`,
+                      fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace",
+                    }}>
+                    <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", textAlign: "right", paddingRight: 4 }}>
+                      Pick
+                    </div>
+                    {scaleTabSteps.map((_, index) => (
+                      <div
+                        key={`tab-head-${index}`}
+                        style={{
+                          fontSize: 11,
+                          textAlign: "center",
+                          color: index === tabActiveIndex ? "var(--color-accent-primary)" : "var(--color-text-tertiary)",
+                          fontWeight: index === tabActiveIndex ? 700 : 400,
+                          background: index === tabActiveIndex
+                            ? "rgba(31, 202, 211, 0.25)"
+                            : (tabActiveBar >= 0 && Math.floor(index / notesPerBar) === tabActiveBar
+                              ? "rgba(31, 202, 211, 0.12)"
+                              : "transparent"),
+                          borderRadius: 6,
+                          height: tabHeaderHeight,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        {scaleTabPicks[index] ?? " "}
+                      </div>
+                    ))}
+                    <div style={{ fontSize: 10, color: "var(--color-text-tertiary)", textAlign: "right", paddingRight: 4 }}>
+                      Beat
+                    </div>
+                    {scaleTabSteps.map((_, index) => (
+                      <div
+                        key={`tab-beat-${index}`}
+                        style={{
+                          fontSize: 10,
+                          textAlign: "center",
+                          color: index % npsValue === 0 ? "var(--color-success)" : "transparent",
+                          fontWeight: 700,
+                          height: tabHeaderHeight,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          background: tabActiveBar >= 0 && Math.floor(index / notesPerBar) === tabActiveBar
+                            ? "rgba(31, 202, 211, 0.18)"
+                            : "transparent",
+                          borderRadius: 6,
+                        }}
+                      >
+                        {index % npsValue === 0 ? `${Math.floor((index % notesPerBar) / npsValue) + 1}` : ""}
+                      </div>
+                    ))}
+                    {tabStrings.map((string) => (
+                      <div key={`tab-${string.index}`} style={{ display: "contents" }}>
+                        <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", textAlign: "right", paddingRight: 4 }}>
+                          {string.label}
+                        </div>
+                        {scaleTabSteps.map((step, index) => (
+                          <div
+                            key={`tab-${string.index}-${index}`}
+                            style={{
+                              fontSize: 12,
+                              textAlign: "center",
+                              height: tabRowHeight,
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              borderRadius: 6,
+                              backgroundColor: step.stringIndex === string.index
+                                ? (index === tabActiveIndex ? "var(--color-accent-primary)" : "var(--color-accent-soft)")
+                                : (index === tabActiveIndex ? "rgba(31, 202, 211, 0.14)" : "transparent"),
+                              color: step.stringIndex === string.index
+                                ? (index === tabActiveIndex ? "var(--color-accent-contrast)" : "var(--color-accent-primary)")
+                                : "var(--color-text-tertiary)",
+                              boxShadow: index === tabActiveIndex && step.stringIndex === string.index
+                                ? "0 0 0 1px rgba(31, 202, 211, 0.35)"
+                                : "none",
+                              borderLeft: index % notesPerBar === 0 ? "1px solid rgba(31, 202, 211, 0.4)" : "none",
+                              borderBottom: "1px solid rgba(42, 51, 64, 0.4)",
+                              backgroundImage: tabActiveBar >= 0 && Math.floor(index / notesPerBar) === tabActiveBar
+                                ? "linear-gradient(0deg, rgba(31, 202, 211, 0.08), rgba(31, 202, 211, 0.08))"
+                                : "none",
+                            }}
+                          >
+                            {step.stringIndex === string.index ? step.fret : "–"}
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 4 }}>
-                Rentre sur le prochain downbeat.
-              </div>
-            </>
-          ) : (
-            <>
-              <div style={{ fontSize: 26, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 6 }}>
-                {currentChord?.display_name ?? "—"}
-              </div>
-              <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 4 }}>
-                Pulse {currentPulseTotal > 0 ? currentPulse + 1 : 0}/{currentPulseTotal} · cycle {completedCycles + 1}
-              </div>
-              <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 8 }}>
-                {currentTargets.length > 0 ? currentTargets[0].description : "Attends le prochain repère."}
-              </div>
-            </>
+            </div>
           )}
-        </div>
 
-        <div style={{
-          border: "0.5px solid var(--color-border-tertiary)",
-          borderRadius: "var(--border-radius-md)",
-          padding: "12px",
-          background: "var(--color-background-secondary)",
-        }}>
-          <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
-            Cibles actives
-          </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
-            {currentTargets.length > 0 ? currentTargets.map((target, index) => (
-              <div
-                key={`${target.step_index}-${target.role}-${index}`}
-                style={{
-                  padding: "7px 9px",
-                  borderRadius: "var(--border-radius-md)",
-                  background: "#EEEDFE",
-                  color: "#3C3489",
-                  fontSize: 12,
-                  fontWeight: 700,
-                }}
-              >
-                {target.pitch_classes.join(" · ")}
-              </div>
-            )) : (
-              <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginTop: 2 }}>
-                Aucune cible sur ce pulse.
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div style={{
-          border: "0.5px solid var(--color-border-tertiary)",
-          borderRadius: "var(--border-radius-md)",
-          padding: "12px",
-          background: "var(--color-background-secondary)",
-        }}>
-          <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
-            Retour MIDI
-          </div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: heardNote ? (heardNote.hit ? "#0F6E56" : "#9A3F1D") : "var(--color-text-primary)", marginTop: 6 }}>
-            {heardNote?.noteLabel ?? "—"}
-          </div>
-          <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 4 }}>
-            {heardNote
-              ? `${heardNote.hit ? "Target hit" : "Hors cible"} · ${heardNote.inputName}`
-              : midiInputs.length > 0
-                ? midiInputs.map((input) => input.name).join(" · ")
-                : "Aucune entrée MIDI détectée"}
-          </div>
-        </div>
-      </div>
-
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12 }}>
-        <div style={{
-          border: "0.5px solid var(--color-border-tertiary)",
-          borderRadius: "var(--border-radius-md)",
-          padding: "12px",
-          background: "var(--color-background-secondary)",
-        }}>
-          <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
-            Tempo ladder
-          </div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 6 }}>
-            {displayedBpm}
-          </div>
-          <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 4 }}>
-            cible {plan?.target_bpm ?? "—"} · +{plan?.bpm_step ?? 0}
-          </div>
-        </div>
-
-        <div style={{
-          border: "0.5px solid var(--color-border-tertiary)",
-          borderRadius: "var(--border-radius-md)",
-          padding: "12px",
-          background: "var(--color-background-secondary)",
-        }}>
-          <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
-            Streak propre
-          </div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 6 }}>
-            {consecutiveCleanReps}
-          </div>
-          <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 4 }}>
-            sur {plan?.reps_per_level ?? "—"} reps avant montée
-          </div>
-        </div>
-
-        <div style={{
-          border: "0.5px solid var(--color-border-tertiary)",
-          borderRadius: "var(--border-radius-md)",
-          padding: "12px",
-          background: "var(--color-background-secondary)",
-        }}>
-          <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
-            Dernière rep
-          </div>
-          <div style={{ fontSize: 24, fontWeight: 700, color: latestRepLabelColor, marginTop: 6 }}>
-            {lastRepScore ? `${lastRepScore.total_score}%` : "—"}
-          </div>
-          <div style={{ fontSize: 11, color: latestRepLabelColor, marginTop: 4 }}>
-            {lastRepScore ? (lastRepScore.clean_rep ? "clean rep" : "à resserrer") : "En attente du premier cycle"}
-          </div>
-          {lastRepScore && (
-            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)", marginTop: 6 }}>
-              pitch {lastRepScore.pitch_score} · timing {lastRepScore.timing_score} · targets {lastRepScore.target_score}
+          {minimalView && !isTabOnly && techniqueLabel && (
+            <div style={{
+              marginTop: 10,
+              padding: "8px 10px",
+              borderRadius: "var(--border-radius-md)",
+              background: "var(--color-accent-soft)",
+              color: "var(--color-accent-primary)",
+              fontSize: 11,
+              fontWeight: 600,
+            }}>
+              {techniqueLabel} · {techniqueTip}
             </div>
           )}
         </div>
+      </div>
 
-        <div style={{
-          border: "0.5px solid var(--color-border-tertiary)",
-          borderRadius: "var(--border-radius-md)",
-          padding: "12px",
-          background: "var(--color-background-secondary)",
-        }}>
-          <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
-            Historique court
+      {!minimalView && !isTabOnly && (
+        <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr 1fr", gap: 12 }}>
+          <div style={{
+            border: "0.5px solid var(--color-border-tertiary)",
+            borderRadius: "var(--border-radius-md)",
+            padding: "12px",
+            background: "var(--color-background-secondary)",
+          }}>
+            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+              Maintenant
+            </div>
+            {phase === "count_in" ? (
+              <>
+                <div style={{ fontSize: 26, fontWeight: 700, color: "var(--color-warning)", marginTop: 6 }}>
+                  {countInBeat}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 4 }}>
+                  Rentre sur le prochain downbeat.
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 26, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 6 }}>
+                  {currentChord?.display_name ?? "—"}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 4 }}>
+                  Pulse {currentPulseTotal > 0 ? currentPulse + 1 : 0}/{currentPulseTotal} · cycle {completedCycles + 1}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 8 }}>
+                  {currentTargets.length > 0 ? currentTargets[0].description : "Attends le prochain repère."}
+                </div>
+              </>
+            )}
           </div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
-            {repHistory.length > 0 ? repHistory.slice(-4).map((entry) => (
-              <div
-                key={`${entry.cycle}-${entry.bpm}`}
-                style={{
-                  padding: "6px 8px",
-                  borderRadius: "var(--border-radius-md)",
-                  background: entry.score.clean_rep ? "#E1F5EE" : "#FAECE7",
-                  color: entry.score.clean_rep ? "#0F6E56" : "#993C1D",
-                  fontSize: 11,
-                  fontWeight: 700,
-                }}
-              >
-                C{entry.cycle} · {entry.score.total_score}
-              </div>
-            )) : (
-              <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>
-                Les scores de rep apparaissent ici.
+
+          <div style={{
+            border: "0.5px solid var(--color-border-tertiary)",
+            borderRadius: "var(--border-radius-md)",
+            padding: "12px",
+            background: "var(--color-background-secondary)",
+          }}>
+            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+              Cibles actives
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+              {currentTargets.length > 0 ? currentTargets.map((target, index) => (
+                <div
+                  key={`${target.step_index}-${target.role}-${index}`}
+                  style={{
+                    padding: "7px 9px",
+                    borderRadius: "var(--border-radius-md)",
+                    background: "var(--color-accent-soft)",
+                    color: "var(--color-accent-strong)",
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}
+                >
+                  {target.pitch_classes.join(" · ")}
+                </div>
+              )) : (
+                <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginTop: 2 }}>
+                  Aucune cible sur ce pulse.
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div style={{
+            border: "0.5px solid var(--color-border-tertiary)",
+            borderRadius: "var(--border-radius-md)",
+            padding: "12px",
+            background: "var(--color-background-secondary)",
+          }}>
+            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+              Retour MIDI
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: heardNote ? (heardNote.hit ? "var(--color-success)" : "var(--color-danger)") : "var(--color-text-primary)", marginTop: 6 }}>
+              {heardNote?.noteLabel ?? "—"}
+            </div>
+            <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 4 }}>
+              {heardNote
+                ? `${heardNote.hit ? "Target hit" : "Hors cible"} · ${heardNote.inputName}`
+                : midiInputs.length > 0
+                  ? midiInputs.map((input) => input.name).join(" · ")
+                  : "Aucune entrée MIDI détectée"}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!minimalView && !isTabOnly && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 12 }}>
+          <div style={{
+            border: "0.5px solid var(--color-border-tertiary)",
+            borderRadius: "var(--border-radius-md)",
+            padding: "12px",
+            background: "var(--color-background-secondary)",
+          }}>
+            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+              Tempo ladder
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 6 }}>
+              {displayedBpm}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 4 }}>
+              cible {plan?.target_bpm ?? "—"} · +{plan?.bpm_step ?? 0}
+            </div>
+          </div>
+
+          <div style={{
+            border: "0.5px solid var(--color-border-tertiary)",
+            borderRadius: "var(--border-radius-md)",
+            padding: "12px",
+            background: "var(--color-background-secondary)",
+          }}>
+            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+              Streak propre
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 6 }}>
+              {consecutiveCleanReps}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginTop: 4 }}>
+              sur {plan?.reps_per_level ?? "—"} reps avant montée
+            </div>
+          </div>
+
+          <div style={{
+            border: "0.5px solid var(--color-border-tertiary)",
+            borderRadius: "var(--border-radius-md)",
+            padding: "12px",
+            background: "var(--color-background-secondary)",
+          }}>
+            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+              Dernière rep
+            </div>
+            <div style={{ fontSize: 24, fontWeight: 700, color: latestRepLabelColor, marginTop: 6 }}>
+              {lastRepScore ? `${lastRepScore.total_score}%` : "—"}
+            </div>
+            <div style={{ fontSize: 11, color: latestRepLabelColor, marginTop: 4 }}>
+              {lastRepScore ? (lastRepScore.clean_rep ? "clean rep" : "à resserrer") : "En attente du premier cycle"}
+            </div>
+            {lastRepScore && (
+              <div style={{ fontSize: 10, color: "var(--color-text-tertiary)", marginTop: 6 }}>
+                pitch {lastRepScore.pitch_score} · timing {lastRepScore.timing_score} · targets {lastRepScore.target_score}
               </div>
             )}
           </div>
+
+          <div style={{
+            border: "0.5px solid var(--color-border-tertiary)",
+            borderRadius: "var(--border-radius-md)",
+            padding: "12px",
+            background: "var(--color-background-secondary)",
+          }}>
+            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+              Historique court
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
+              {repHistory.length > 0 ? repHistory.slice(-4).map((entry) => (
+                <div
+                  key={`${entry.cycle}-${entry.bpm}`}
+                  style={{
+                    padding: "6px 8px",
+                    borderRadius: "var(--border-radius-md)",
+                    background: entry.score.clean_rep ? "var(--color-success-soft)" : "var(--color-danger-soft)",
+                    color: entry.score.clean_rep ? "var(--color-success)" : "var(--color-danger)",
+                    fontSize: 11,
+                    fontWeight: 700,
+                  }}
+                >
+                  C{entry.cycle} · {entry.score.total_score}
+                </div>
+              )) : (
+                <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>
+                  Les scores de rep apparaissent ici.
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
+      )}
 
       {lastRepScore?.feedback.length ? (
         <div style={{
@@ -716,11 +1236,11 @@ export function PracticeLivePanel({
 
       {midiError && (
         <div style={{
-          border: "0.5px solid #F5C4B3",
+          border: "0.5px solid var(--color-danger)",
           borderRadius: "var(--border-radius-md)",
           padding: "10px 12px",
-          background: "#FAECE7",
-          color: "#993C1D",
+          background: "var(--color-danger-soft)",
+          color: "var(--color-danger)",
           fontSize: 12,
         }}>
           {midiError}

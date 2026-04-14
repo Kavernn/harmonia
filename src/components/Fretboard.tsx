@@ -19,34 +19,34 @@ const FB_BOT = FB_H - 32;
 const FRET_MARKERS = new Set([3, 5, 7, 9, 12, 15, 17, 19, 21, 24]);
 const DOUBLE_DOTS = new Set([12, 24]);
 const PHRASE_META: Record<string, { color: string; background: string; label: string }> = {
-  "guide-tones": { color: "#185FA5", background: "#E6F1FB", label: "GT" },
-  "root-path": { color: "#9A5417", background: "#FFF1E4", label: "RP" },
-  "top-answer": { color: "#0F6E56", background: "#E1F5EE", label: "TL" },
+  "guide-tones": { color: "var(--color-accent-primary)", background: "var(--color-accent-soft)", label: "GT" },
+  "root-path": { color: "var(--color-warning)", background: "var(--color-warning-soft)", label: "RP" },
+  "top-answer": { color: "var(--color-success)", background: "var(--color-success-soft)", label: "TL" },
 };
 
 const FRETBOARD_THEME = {
-  frame: "#120F0D",
-  neckStart: "#3A2A1F",
-  neckEnd: "#241913",
-  woodStripe: "#4B3729",
-  fret: "#C9AF87",
-  marker: "#BFA47E",
-  nut: "#E8D7B4",
-  string: "#CFC9C1",
-  stringLabel: "#A7937B",
-  fretLabel: "#8C7863",
-  rootFill: "#E8B15D",
-  rootText: "#3C2610",
-  chordFill: "#6C5FCF",
-  chordText: "#F4F2FF",
-  scaleFill: "#2E8B6D",
-  scaleText: "#F0FCF7",
-  avoidFill: "#874646",
-  avoidText: "#F0CACA",
-  colorFill: "#C96D48",
-  colorText: "#FFF0E8",
-  modalOutline: "#5BA7B8",
-  resolutionOutline: "#79B7F5",
+  frame: "var(--color-fretboard-frame)",
+  neckStart: "var(--color-fretboard-neck-start)",
+  neckEnd: "var(--color-fretboard-neck-end)",
+  woodStripe: "var(--color-fretboard-stripe)",
+  fret: "var(--color-fretboard-fret)",
+  marker: "var(--color-fretboard-marker)",
+  nut: "var(--color-fretboard-nut)",
+  string: "var(--color-fretboard-string)",
+  stringLabel: "var(--color-fretboard-string-label)",
+  fretLabel: "var(--color-fretboard-fret-label)",
+  rootFill: "var(--color-fretboard-root)",
+  rootText: "var(--color-accent-contrast)",
+  chordFill: "var(--color-accent-primary)",
+  chordText: "var(--color-accent-contrast)",
+  scaleFill: "var(--color-success)",
+  scaleText: "var(--color-accent-contrast)",
+  avoidFill: "var(--color-fretboard-avoid)",
+  avoidText: "var(--color-accent-contrast)",
+  colorFill: "var(--color-fretboard-color)",
+  colorText: "var(--color-accent-contrast)",
+  modalOutline: "var(--color-fretboard-modal)",
+  resolutionOutline: "var(--color-fretboard-resolution)",
 };
 
 const CAGED_SHAPES: Record<string, { name: string; intervals: number[] }> = {
@@ -173,7 +173,7 @@ function FretboardInner({
   }
 
   function phraseMeta(phrase: PhraseGuide) {
-    return PHRASE_META[phrase.id] ?? { color: "#534AB7", background: "#EEEDFE", label: "PG" };
+    return PHRASE_META[phrase.id] ?? { color: "var(--color-accent-primary)", background: "var(--color-accent-soft)", label: "PG" };
   }
 
   return (
@@ -181,14 +181,14 @@ function FretboardInner({
       {!isFocus && (
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
         {displayPreset !== "jam" && (
-          <div style={{ fontSize: 10, color: "#534AB7", opacity: 0.7 }}>
+          <div style={{ fontSize: 10, color: "var(--color-accent-primary)", opacity: 0.7 }}>
             {CAGED_SHAPES[cagedShape]?.name ?? ""}
           </div>
         )}
         <div style={{
           fontSize: 10,
-          color: "#0F6E56",
-          background: "#E1F5EE",
+          color: "var(--color-success)",
+          background: "var(--color-success-soft)",
           borderRadius: 99,
           padding: "2px 8px",
         }}>
@@ -201,8 +201,8 @@ function FretboardInner({
         {colorTones.length > 0 && (
           <div style={{
             fontSize: 10,
-            color: "#FBEDE8",
-            background: "#D85A30",
+            color: "var(--color-accent-contrast)",
+            background: "var(--color-fretboard-color)",
             borderRadius: 99,
             padding: "2px 8px",
           }}>
@@ -212,8 +212,8 @@ function FretboardInner({
         {displayPreset !== "jam" && modalCharacteristicTones.length > 0 && (
           <div style={{
             fontSize: 10,
-            color: "#0B6F89",
-            background: "#DFF6FB",
+            color: "var(--color-accent-primary)",
+            background: "var(--color-accent-soft)",
             borderRadius: 99,
             padding: "2px 8px",
           }}>
@@ -223,8 +223,8 @@ function FretboardInner({
         {displayPreset === "advanced" && modalAvoidTones.length > 0 && (
           <div style={{
             fontSize: 10,
-            color: "#9A5417",
-            background: "#FFF1E4",
+            color: "var(--color-warning)",
+            background: "var(--color-warning-soft)",
             borderRadius: 99,
             padding: "2px 8px",
           }}>
@@ -234,8 +234,8 @@ function FretboardInner({
         {resolutionNoteSet.size > 0 && (
           <div style={{
             fontSize: 10,
-            color: "#185FA5",
-            background: "#E6F1FB",
+            color: "var(--color-accent-primary)",
+            background: "var(--color-accent-soft)",
             borderRadius: 99,
             padding: "2px 8px",
           }}>
@@ -251,7 +251,7 @@ function FretboardInner({
         display: "block",
         borderRadius: 12,
         overflow: "hidden",
-        boxShadow: "0 10px 24px rgba(0, 0, 0, 0.14)",
+        boxShadow: "var(--color-shadow)",
       }}>
         <defs>
           <linearGradient id="neckGradient" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -260,7 +260,7 @@ function FretboardInner({
           </linearGradient>
           <linearGradient id="stringGradient" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stopColor={FRETBOARD_THEME.string} stopOpacity="0.72"/>
-            <stop offset="50%" stopColor="#F8F5F0" stopOpacity="0.95"/>
+            <stop offset="50%" stopColor="var(--color-text-primary)" stopOpacity="0.9"/>
             <stop offset="100%" stopColor={FRETBOARD_THEME.string} stopOpacity="0.72"/>
           </linearGradient>
         </defs>
@@ -279,7 +279,7 @@ function FretboardInner({
           />
         ))}
 
-        {flash && <rect x="8" y="8" width={FB_W - 16} height={FB_H - 16} rx="8" fill="#534AB7" opacity="0.04"/>}
+        {flash && <rect x="8" y="8" width={FB_W - 16} height={FB_H - 16} rx="8" fill="var(--color-accent-primary)" opacity="0.04"/>}
 
         {windowStart === 0
           ? <rect x={FB_LEFT - 5} y={FB_TOP} width={6} height={FB_BOT - FB_TOP} fill={FRETBOARD_THEME.nut}/>
@@ -337,9 +337,9 @@ function FretboardInner({
           const label = noteLabel(position.note);
           return (
             <g key={`resolution-base-${i}`}>
-              <circle cx={x} cy={y} r={8} fill="#EAF4FE"/>
+              <circle cx={x} cy={y} r={8} fill="var(--color-accent-soft)"/>
               {!isFocus && (
-                <text x={x} y={y + 4} textAnchor="middle" fontSize={noteFontSize(label, 8)} fontWeight="600" fill="#245E95">{label}</text>
+                <text x={x} y={y + 4} textAnchor="middle" fontSize={noteFontSize(label, 8)} fontWeight="600" fill="var(--color-accent-primary)">{label}</text>
               )}
             </g>
           );
@@ -365,7 +365,7 @@ function FretboardInner({
             <g key={`chord-${i}`}>
               <circle cx={x} cy={stringY(position.string)} r={isFocus ? 9.5 : 11} fill={FRETBOARD_THEME.chordFill}/>
               {isFocus ? (
-                <circle cx={x} cy={stringY(position.string)} r={2.4} fill="#FFFFFF" opacity={0.9}/>
+                <circle cx={x} cy={stringY(position.string)} r={2.4} fill="var(--color-text-primary)" opacity={0.9}/>
               ) : (
                 <text x={x} y={stringY(position.string) + 4} textAnchor="middle" fontSize={noteFontSize(label, 11)} fontWeight="500" fill={FRETBOARD_THEME.chordText}>{label}</text>
               )}
@@ -405,11 +405,11 @@ function FretboardInner({
                   height={22}
                   rx={4}
                   fill={FRETBOARD_THEME.colorFill}
-                  stroke="#F6C7B2"
+                  stroke={FRETBOARD_THEME.colorFill}
                   strokeWidth={1.5}
                 />
               ) : (
-                <circle cx={x} cy={y} r={11} fill={FRETBOARD_THEME.colorFill} stroke="#F6C7B2" strokeWidth={1.5}/>
+                <circle cx={x} cy={y} r={11} fill={FRETBOARD_THEME.colorFill} stroke={FRETBOARD_THEME.colorFill} strokeWidth={1.5}/>
               )}
               {isFocus ? (
                 <text x={x} y={y + 3.5} textAnchor="middle" fontSize={8.5} fontWeight="700" fill={FRETBOARD_THEME.colorText}>+</text>
@@ -448,7 +448,7 @@ function FretboardInner({
                 cy={y}
                 r={position.is_root || position.is_chord_tone ? 16 : 13}
                 fill="none"
-                stroke="#B6782D"
+                stroke="var(--color-warning)"
                 strokeWidth={1.8}
                 strokeDasharray="3 3"
                 opacity={0.85}
@@ -482,9 +482,9 @@ function FretboardInner({
       {showTabGuide && (
         <div style={{
           marginTop: 12,
-          border: "0.5px solid #E4D9CB",
+          border: "0.5px solid var(--color-border-tertiary)",
           borderRadius: "var(--border-radius-md)",
-          background: "#FCF8F3",
+          background: "var(--color-background-secondary)",
           padding: "10px 10px 8px",
           minHeight: 0,
         }}>
@@ -539,7 +539,7 @@ function FretboardInner({
               <div key={`tab-row-${stringIndex}`} style={{ display: "contents" }}>
                 <div style={{
                   fontSize: 11,
-                  color: "#6E5E50",
+                  color: "var(--color-text-secondary)",
                   textAlign: "center",
                   fontWeight: 600,
                   fontVariantNumeric: "tabular-nums",
@@ -558,47 +558,47 @@ function FretboardInner({
                   const functionLabel = position ? chordFunctionLabel(position.note, chordTones, chordQuality) : null;
                   const cellRings = [];
                   if (isColorTone) {
-                    cellRings.push("inset 0 0 0 1px #D85A30");
+                    cellRings.push("inset 0 0 0 1px var(--color-fretboard-color)");
                   }
                   if (isModalCharacteristic) {
-                    cellRings.push("inset 0 0 0 2px #0B8FB9");
+                    cellRings.push("inset 0 0 0 2px var(--color-fretboard-modal)");
                   }
                   if (isModalAvoid) {
-                    cellRings.push("inset 0 0 0 3px rgba(184, 92, 0, 0.2)");
+                    cellRings.push("inset 0 0 0 3px rgba(244, 200, 124, 0.3)");
                   }
                   if (isResolutionTone) {
-                    cellRings.push("inset 0 0 0 3px #4AA7FF");
+                    cellRings.push("inset 0 0 0 3px var(--color-fretboard-resolution)");
                   }
                   return (
                     <div key={`tab-cell-${stringIndex}-${fret}`} style={{
                       height: 28,
                       borderRadius: 6,
                       border: isColorTone
-                        ? "1px solid #D85A30"
+                        ? "1px solid var(--color-fretboard-color)"
                         : isRoot
-                          ? "1px solid #EF9F27"
+                          ? "1px solid var(--color-fretboard-root)"
                           : isChordTone
-                            ? "1px solid #534AB7"
+                            ? "1px solid var(--color-accent-primary)"
                             : isScaleTone
-                              ? "0.5px solid rgba(29, 158, 117, 0.45)"
+                              ? "0.5px solid rgba(110, 231, 183, 0.45)"
                               : "0.5px solid var(--color-border-secondary)",
                       background: isColorTone
-                        ? "#FBEDE8"
+                        ? "var(--color-fretboard-color-soft)"
                         : isRoot
-                          ? "#FFF2DA"
+                          ? "var(--color-warning-soft)"
                           : isChordTone
-                            ? "#EEEDFE"
+                            ? "var(--color-accent-soft)"
                             : isScaleTone
-                              ? "rgba(225, 245, 238, 0.8)"
-                              : "#F7F0E7",
+                              ? "var(--color-success-soft)"
+                              : "var(--color-background-tertiary)",
                       color: isColorTone
-                        ? "#9A3F1D"
+                        ? "var(--color-fretboard-color)"
                         : isRoot
-                          ? "#6D4600"
+                          ? "var(--color-fretboard-root)"
                           : isChordTone
-                            ? "#3C3489"
+                            ? "var(--color-accent-primary)"
                             : isScaleTone
-                              ? "#0F6E56"
+                              ? "var(--color-success)"
                               : "var(--color-text-tertiary)",
                       display: "flex",
                       alignItems: "center",
@@ -621,7 +621,7 @@ function FretboardInner({
                           top: 2,
                           fontSize: 8,
                           fontWeight: 700,
-                          color: "#D85A30",
+                          color: "var(--color-fretboard-color)",
                         }}>
                           +
                         </span>
@@ -633,7 +633,7 @@ function FretboardInner({
                           bottom: 2,
                           fontSize: 8,
                           fontWeight: 700,
-                          color: "#0B8FB9",
+                          color: "var(--color-fretboard-modal)",
                         }}>
                           M
                         </span>
@@ -645,7 +645,7 @@ function FretboardInner({
                           bottom: 2,
                           fontSize: 8,
                           fontWeight: 700,
-                          color: "#9A5417",
+                          color: "var(--color-warning)",
                         }}>
                           !
                         </span>
@@ -657,7 +657,7 @@ function FretboardInner({
                           top: 2,
                           fontSize: 8,
                           fontWeight: 700,
-                          color: "#185FA5",
+                          color: "var(--color-fretboard-resolution)",
                         }}>
                           →
                         </span>
@@ -733,10 +733,10 @@ function FretboardInner({
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                     {phrase.steps.map((step, index) => {
                       const roleStyle = step.role === "start"
-                        ? { background: "#EEEDFE", border: "#534AB7", color: "#3C3489" }
+                        ? { background: "var(--color-accent-soft)", border: "var(--color-accent-primary)", color: "var(--color-accent-strong)" }
                         : step.role === "target"
-                          ? { background: "#FFF2DA", border: "#EF9F27", color: "#6D4600" }
-                          : { background: "#E1F5EE", border: "#1D9E75", color: "#0F6E56" };
+                          ? { background: "var(--color-warning-soft)", border: "var(--color-warning)", color: "var(--color-warning)" }
+                          : { background: "var(--color-success-soft)", border: "var(--color-success)", color: "var(--color-success)" };
                       return (
                         <div key={`${phrase.id}-${index}`} style={{ display: "flex", gap: 8, alignItems: "center" }}>
                           <div style={{

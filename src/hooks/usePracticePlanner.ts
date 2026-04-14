@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { NOTE_VALUES, NOTES, type NoteValueId, type ProgressionChord, type ScaleSuggestion } from "../music";
 import { buildProgressionRequest, getPracticeLibrary, getPracticePlan } from "../services/musicApi";
-import type { PracticeExercise, PracticeInputModeId, PracticePlan } from "../practice";
+import type { PracticeExercise, PracticeInputModeId, PracticePlan, ScaleRunDirectionId } from "../practice";
 import { usePersistentState } from "./usePersistentState";
 
 interface UsePracticePlannerArgs {
@@ -52,6 +52,26 @@ export function usePracticePlanner({
     "midi",
   );
   const [windowSize, setWindowSize] = usePersistentState("harmonia.practice.window-size", 5);
+  const [positionStart, setPositionStart] = usePersistentState<number | null>(
+    "harmonia.practice.position-start",
+    null,
+  );
+  const [scaleRunDirection, setScaleRunDirection] = usePersistentState<ScaleRunDirectionId>(
+    "harmonia.practice.scale-run-direction",
+    "ascending",
+  );
+  const [scaleRunNotesPerString, setScaleRunNotesPerString] = usePersistentState(
+    "harmonia.practice.scale-run-nps",
+    3,
+  );
+  const [scaleRunAutoPositions, setScaleRunAutoPositions] = usePersistentState(
+    "harmonia.practice.scale-run-auto-positions",
+    false,
+  );
+  const [scaleRunRandomPositions, setScaleRunRandomPositions] = usePersistentState(
+    "harmonia.practice.scale-run-random-positions",
+    false,
+  );
   const tuningFingerprint = tuningSemitones.join(",");
 
   useEffect(() => {
@@ -78,6 +98,31 @@ export function usePracticePlanner({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!scaleRunAutoPositions) return;
+    setPositionStart(null);
+  }, [scaleRunAutoPositions, setPositionStart]);
+
+  useEffect(() => {
+    if (scaleRunAutoPositions) return;
+    if (!scaleRunRandomPositions) return;
+    setScaleRunRandomPositions(false);
+  }, [scaleRunAutoPositions, scaleRunRandomPositions, setScaleRunRandomPositions]);
+
+  useEffect(() => {
+    if (scaleRunAutoPositions) return;
+    if (positionStart == null) return;
+    if (selectedExerciseId !== "scale-speed-picking") return;
+    setScaleRunAutoPositions(false);
+    setScaleRunRandomPositions(false);
+  }, [
+    positionStart,
+    scaleRunAutoPositions,
+    selectedExerciseId,
+    setScaleRunAutoPositions,
+    setScaleRunRandomPositions,
+  ]);
 
   useEffect(() => {
     if (!library.length) return;
@@ -124,6 +169,9 @@ export function usePracticePlanner({
           count_in_bars: clampNumber(countInBars, 0, 8),
           input_mode: inputMode,
           window_size: clampNumber(windowSize, 4, 12),
+          position_start: positionStart ?? undefined,
+          scale_run_direction: scaleRunDirection,
+          scale_run_notes_per_string: clampNumber(scaleRunNotesPerString, 2, 4),
         });
 
         if (cancelled) return;
@@ -160,6 +208,9 @@ export function usePracticePlanner({
     targetBpm,
     tempoUnit,
     windowSize,
+    positionStart,
+    scaleRunDirection,
+    scaleRunNotesPerString,
     tuningFingerprint,
   ]);
 
@@ -213,6 +264,11 @@ export function usePracticePlanner({
     countInBars,
     inputMode,
     windowSize,
+    positionStart,
+    scaleRunDirection,
+    scaleRunNotesPerString,
+    scaleRunAutoPositions,
+    scaleRunRandomPositions,
     noteValues: NOTE_VALUES,
     onSelectExerciseId: setSelectedExerciseId,
     onProgressionSourceChange: setProgressionSource,
@@ -224,5 +280,10 @@ export function usePracticePlanner({
     onCountInBarsChange: setCountInBars,
     onInputModeChange: setInputMode,
     onWindowSizeChange: setWindowSize,
+    onPositionStartChange: setPositionStart,
+    onScaleRunDirectionChange: setScaleRunDirection,
+    onScaleRunNotesPerStringChange: setScaleRunNotesPerString,
+    onScaleRunAutoPositionsChange: setScaleRunAutoPositions,
+    onScaleRunRandomPositionsChange: setScaleRunRandomPositions,
   };
 }

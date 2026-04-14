@@ -8,7 +8,8 @@ pub use exercise::{
     practice_library,
 };
 pub use session::{
-    InputMode, PracticeNoteValue, PracticePlan, PracticePlanArgs, build_practice_plan,
+    InputMode, PracticeNoteValue, PracticePlan, PracticePlanArgs, ScaleRunDirection,
+    build_practice_plan,
 };
 pub use scoring::{PracticePerformedNote, PracticeRepScore, score_practice_rep};
 pub use targets::{PracticeTarget, PracticeTargetRole, practice_targets};

@@ -138,9 +138,9 @@ export function CommandPalette({ actions, onClose }: CommandPaletteProps) {
                   }}
                   style={{
                     width: "100%",
-                    border: active ? "1.5px solid #534AB7" : "0.5px solid transparent",
-                    background: active ? "#EEEDFE" : "transparent",
-                    color: active ? "#3C3489" : "var(--color-text-primary)",
+                    border: active ? "1.5px solid var(--color-accent-primary)" : "0.5px solid transparent",
+                    background: active ? "var(--color-accent-soft)" : "transparent",
+                    color: active ? "var(--color-accent-strong)" : "var(--color-text-primary)",
                     borderRadius: 10,
                     padding: "10px 12px",
                     textAlign: "left",
@@ -152,7 +152,7 @@ export function CommandPalette({ actions, onClose }: CommandPaletteProps) {
                   }}
                 >
                   <span style={{ fontSize: 13, fontWeight: 500 }}>{action.label}</span>
-                  <span style={{ fontSize: 10, color: active ? "#6A62C7" : "var(--color-text-tertiary)" }}>
+                  <span style={{ fontSize: 10, color: active ? "var(--color-accent-primary)" : "var(--color-text-tertiary)" }}>
                     Enter
                   </span>
                 </button>

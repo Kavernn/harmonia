@@ -145,9 +145,9 @@ export function ControlSidebar({
         <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 210, overflowY: "auto", paddingRight: 2 }}>
           {visibleTunings.map((preset) => (
             <button key={preset.id} onClick={() => onSelectTuningId(preset.id)} style={{
-              border: selectedTuningId === preset.id ? "1.5px solid #534AB7" : "0.5px solid var(--color-border-tertiary)",
-              background: selectedTuningId === preset.id ? "#EEEDFE" : "var(--color-background-primary)",
-              color: selectedTuningId === preset.id ? "#3C3489" : "var(--color-text-secondary)",
+              border: selectedTuningId === preset.id ? "1.5px solid var(--color-accent-primary)" : "0.5px solid var(--color-border-tertiary)",
+              background: selectedTuningId === preset.id ? "var(--color-accent-soft)" : "var(--color-background-primary)",
+              color: selectedTuningId === preset.id ? "var(--color-accent-strong)" : "var(--color-text-secondary)",
               borderRadius: "var(--border-radius-md)",
               padding: "7px 10px",
               fontSize: 12,
@@ -174,9 +174,9 @@ export function ControlSidebar({
         <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 3 }}>
           {NOTES.map((note, index) => (
             <button key={index} onClick={() => onSelectHarmonyRoot(index)} style={{
-              border: harmonyRoot === index ? "1.5px solid #534AB7" : "0.5px solid var(--color-border-tertiary)",
-              background: harmonyRoot === index ? "#534AB7" : SHARPS.has(note) ? "var(--color-background-tertiary)" : "var(--color-background-primary)",
-              color: harmonyRoot === index ? "#EEEDFE" : SHARPS.has(note) ? "var(--color-text-secondary)" : "var(--color-text-primary)",
+              border: harmonyRoot === index ? "1.5px solid var(--color-accent-primary)" : "0.5px solid var(--color-border-tertiary)",
+              background: harmonyRoot === index ? "var(--color-accent-primary)" : SHARPS.has(note) ? "var(--color-background-tertiary)" : "var(--color-background-primary)",
+              color: harmonyRoot === index ? "var(--color-accent-contrast)" : SHARPS.has(note) ? "var(--color-text-secondary)" : "var(--color-text-primary)",
               borderRadius: "var(--border-radius-md)",
               padding: "5px 2px",
               fontSize: 12,
@@ -193,9 +193,9 @@ export function ControlSidebar({
         <div style={{ display: "flex", flexDirection: "column", gap: 3, maxHeight: 260, overflowY: "auto", paddingRight: 2 }}>
           {visibleHarmonyScales.map((item) => (
             <button key={item.id} onClick={() => onSelectHarmonyScaleName(item.id)} style={{
-              border: harmonyScaleName === item.id ? "1.5px solid #534AB7" : "0.5px solid var(--color-border-tertiary)",
-              background: harmonyScaleName === item.id ? "#EEEDFE" : "var(--color-background-primary)",
-              color: harmonyScaleName === item.id ? "#3C3489" : "var(--color-text-secondary)",
+              border: harmonyScaleName === item.id ? "1.5px solid var(--color-accent-primary)" : "0.5px solid var(--color-border-tertiary)",
+              background: harmonyScaleName === item.id ? "var(--color-accent-soft)" : "var(--color-background-primary)",
+              color: harmonyScaleName === item.id ? "var(--color-accent-strong)" : "var(--color-text-secondary)",
               borderRadius: "var(--border-radius-md)",
               padding: "6px 10px",
               fontSize: 12,

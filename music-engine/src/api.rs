@@ -31,7 +31,7 @@ pub use crate::practice::{
     ExerciseCategory, ExerciseGoal, InputMode, PracticeExercise, PracticeNoteValue, PracticePlan,
     PracticePlanArgs, PracticePerformedNote, PracticeRepScore, PracticeTarget,
     PracticeTargetRole, TargetStrategy, build_practice_plan, find_practice_exercise,
-    practice_library, practice_targets, score_practice_rep,
+    practice_library, practice_targets, score_practice_rep, ScaleRunDirection,
 };
 pub use crate::progression::builder::{
     build_progression, build_progression_from_steps, common_progressions, progression_step_options,

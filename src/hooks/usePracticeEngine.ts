@@ -555,6 +555,15 @@ export function usePracticeEngine({
     }
   }
 
+  function nudgeBpm(delta: number) {
+    const activePlan = planRef.current;
+    if (!activePlan) return;
+    const next = Math.min(260, Math.max(40, currentBpmRef.current + delta));
+    if (next === currentBpmRef.current) return;
+    currentBpmRef.current = next;
+    setCurrentBpm(next);
+  }
+
   const currentPulseTotal = plan && phase === "running"
     ? pulsesForDuration(plan.step_durations[currentStepIndex] ?? "quarter")
     : 0;
@@ -601,6 +610,7 @@ export function usePracticeEngine({
     startPractice,
     stopPractice,
     replayCue,
+    nudgeBpm,
     clearSessionHistory: () => {
       setSessionHistory([]);
       setLastSessionSummary(null);

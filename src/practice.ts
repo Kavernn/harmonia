@@ -1,6 +1,7 @@
 import type { NoteValueId } from "./music";
 
 export type PracticeInputModeId = "microphone" | "midi";
+export type ScaleRunDirectionId = "ascending" | "descending" | "up_down";
 
 export interface PracticeExercise {
   id: string;
@@ -48,6 +49,8 @@ export interface PracticePlan {
   input_mode: PracticeInputModeId;
   position_start: number | null;
   window_size: number;
+  scale_run_direction: ScaleRunDirectionId;
+  scale_run_notes_per_string: number;
   targets: PracticeTarget[];
 }
 
@@ -69,6 +72,8 @@ export interface PracticePlanRequest {
   input_mode?: PracticeInputModeId;
   position_start?: number | null;
   window_size?: number;
+  scale_run_direction?: ScaleRunDirectionId;
+  scale_run_notes_per_string?: number;
 }
 
 export interface PracticeRepEvent {

@@ -2,9 +2,9 @@ import { ROMAN, canonicalScaleName, type CompatibleMode, type ScaleSuggestion } 
 
 function Badge({ level }: { level: string }) {
   const tones: Record<string, [string, string]> = {
-    high: ["#E1F5EE", "#0F6E56"],
-    medium: ["#FAEEDA", "#854F0B"],
-    low: ["#FAECE7", "#993C1D"],
+    high: ["var(--color-success-soft)", "var(--color-success)"],
+    medium: ["var(--color-warning-soft)", "var(--color-warning)"],
+    low: ["var(--color-danger-soft)", "var(--color-danger)"],
   };
   const [background, color] = tones[level] ?? tones.low;
 
@@ -63,13 +63,13 @@ export function ScaleSuggestionsPanel({
               Notes communes avec la grille: {highlightedScale.matching_notes.join(" · ") || "aucune"}
             </div>
             {highlightedScale.characteristic_notes.length > 0 && (
-              <div style={{ fontSize: 12, color: "#0B6F89" }}>
+              <div style={{ fontSize: 12, color: "var(--color-accent-primary)" }}>
                 Signature modale: {highlightedScale.characteristic_notes.join(" · ")}
                 {highlightedScale.modal_avoid_notes.length > 0 ? ` · avoid: ${highlightedScale.modal_avoid_notes.join(" · ")}` : ""}
               </div>
             )}
             {highlightedScale.resolution_notes.length > 0 && (
-              <div style={{ fontSize: 12, color: "#185FA5" }}>
+              <div style={{ fontSize: 12, color: "var(--color-accent-primary)" }}>
                 Résolutions: {highlightedScale.resolution_notes.join(" · ")}
               </div>
             )}
@@ -84,14 +84,14 @@ export function ScaleSuggestionsPanel({
               </div>
             )}
             {highlightedScale.mode && (
-              <div style={{ fontSize: 12, color: "#534AB7" }}>
+              <div style={{ fontSize: 12, color: "var(--color-accent-primary)" }}>
                 Lecture modale: {highlightedScale.mode.name} depuis {ROMAN[highlightedScale.mode.degree]}
               </div>
             )}
           </div>
         )}
         {loading && <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginTop: 4 }}>Analyse en cours…</div>}
-        {error && <div style={{ fontSize: 12, color: "#993C1D", marginTop: 4 }}>{error}</div>}
+        {error && <div style={{ fontSize: 12, color: "var(--color-danger)", marginTop: 4 }}>{error}</div>}
       </div>
 
       {compatibleModes.length > 1 && (
@@ -116,9 +116,9 @@ export function ScaleSuggestionsPanel({
                   key={`${mode.scale_root}-${mode.scale_name}`}
                   onClick={() => onSelectCompatibleMode(mode.scale_root, mode.scale_name)}
                   style={{
-                    border: selected ? "1.5px solid #534AB7" : "0.5px solid var(--color-border-tertiary)",
-                    background: selected ? "#EEEDFE" : "var(--color-background-primary)",
-                    color: selected ? "#3C3489" : "var(--color-text-secondary)",
+                    border: selected ? "1.5px solid var(--color-accent-primary)" : "0.5px solid var(--color-border-tertiary)",
+                    background: selected ? "var(--color-accent-soft)" : "var(--color-background-primary)",
+                    color: selected ? "var(--color-accent-strong)" : "var(--color-text-secondary)",
                     borderRadius: "var(--border-radius-md)",
                     padding: "7px 10px",
                     cursor: "pointer",
@@ -153,24 +153,24 @@ export function ScaleSuggestionsPanel({
                 selectedScale?.scale_root === scale.scale_root
                 && canonicalScaleName(selectedScale?.scale_name ?? "") === canonicalScaleName(scale.scale_name);
               const borderColor =
-                scale.confidence === "high" ? "#1D9E75" : scale.confidence === "medium" ? "#BA7517" : "#D85A30";
+                scale.confidence === "high" ? "var(--color-success)" : scale.confidence === "medium" ? "var(--color-warning)" : "var(--color-danger)";
 
               return (
                 <div key={index} onClick={() => onSelectScale(scale)} style={{
-                  border: selected ? "1.5px solid #534AB7" : "0.5px solid var(--color-border-tertiary)",
-                  borderLeft: selected ? "3px solid #534AB7" : `3px solid ${borderColor}`,
+                  border: selected ? "1.5px solid var(--color-accent-primary)" : "0.5px solid var(--color-border-tertiary)",
+                  borderLeft: selected ? "3px solid var(--color-accent-primary)" : `3px solid ${borderColor}`,
                   borderRadius: "var(--border-radius-md)",
                   padding: "9px 11px",
                   cursor: "pointer",
-                  background: selected ? "#EEEDFE" : "var(--color-background-primary)",
+                  background: selected ? "var(--color-accent-soft)" : "var(--color-background-primary)",
                 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: selected ? "#3C3489" : "var(--color-text-primary)" }}>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: selected ? "var(--color-accent-strong)" : "var(--color-text-primary)" }}>
                         {scale.scale_root} {scale.scale_name}
                       </div>
                       {scale.mode && (
-                        <div style={{ fontSize: 11, color: "#534AB7", marginTop: 1 }}>
+                        <div style={{ fontSize: 11, color: "var(--color-accent-primary)", marginTop: 1 }}>
                           {scale.mode.name} — {ROMAN[scale.mode.degree]}
                         </div>
                       )}
@@ -184,7 +184,7 @@ export function ScaleSuggestionsPanel({
                     Notes d'accord dedans: {scale.matching_notes.length} · Tensions a gerer: {scale.outside_notes.length}
                   </div>
                   {scale.characteristic_notes.length > 0 && (
-                    <div style={{ fontSize: 10, color: "#0B6F89", marginTop: 4 }}>
+                    <div style={{ fontSize: 10, color: "var(--color-accent-primary)", marginTop: 4 }}>
                       Repère modal: {scale.characteristic_notes.join(" · ")}
                     </div>
                   )}

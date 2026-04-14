@@ -5,6 +5,7 @@ pub enum ExerciseCategory {
     ModalColor,
     PhraseAnswer,
     PositionWork,
+    ScaleWorkout,
 }
 
 impl ExerciseCategory {
@@ -15,6 +16,7 @@ impl ExerciseCategory {
             ExerciseCategory::ModalColor => "Modal Color",
             ExerciseCategory::PhraseAnswer => "Phrase Answer",
             ExerciseCategory::PositionWork => "Position Work",
+            ExerciseCategory::ScaleWorkout => "Scale Workout",
         }
     }
 }
@@ -25,6 +27,7 @@ pub enum ExerciseGoal {
     ResolveColorTones,
     StayInsidePosition,
     FollowPhraseGuide,
+    BuildSpeedPicking,
 }
 
 impl ExerciseGoal {
@@ -34,6 +37,7 @@ impl ExerciseGoal {
             ExerciseGoal::ResolveColorTones => "Resolve color tones",
             ExerciseGoal::StayInsidePosition => "Stay inside the position",
             ExerciseGoal::FollowPhraseGuide => "Follow the phrase guide",
+            ExerciseGoal::BuildSpeedPicking => "Build speed picking",
         }
     }
 }
@@ -44,6 +48,8 @@ pub enum TargetStrategy {
     ModalCharacteristicFirst,
     ResolveOnNextBeat,
     FollowPhraseGuide,
+    ScaleRun,
+    ChordToneRun,
 }
 
 impl TargetStrategy {
@@ -53,6 +59,8 @@ impl TargetStrategy {
             TargetStrategy::ModalCharacteristicFirst => "Modal characteristic first",
             TargetStrategy::ResolveOnNextBeat => "Resolve on next beat",
             TargetStrategy::FollowPhraseGuide => "Follow phrase guide",
+            TargetStrategy::ScaleRun => "Scale run",
+            TargetStrategy::ChordToneRun => "Chord tone run",
         }
     }
 }
@@ -143,6 +151,66 @@ pub fn practice_library() -> Vec<PracticeExercise> {
                 "V".to_string(),
                 "I".to_string(),
                 "vi".to_string(),
+            ],
+            default_window_size: 5,
+        },
+        PracticeExercise {
+            id: "scale-speed-picking",
+            name: "Scale speed picking",
+            description: "Run the scale with steady alternate picking inside one box.",
+            category: ExerciseCategory::ScaleWorkout,
+            goal: ExerciseGoal::BuildSpeedPicking,
+            target_strategy: TargetStrategy::ScaleRun,
+            default_progression_steps: vec![
+                "I".to_string(),
+                "I".to_string(),
+                "I".to_string(),
+                "I".to_string(),
+            ],
+            default_window_size: 4,
+        },
+        PracticeExercise {
+            id: "alternate-picking-foundation",
+            name: "Alternate picking foundation",
+            description: "Strict down-up motion with even timing on every note.",
+            category: ExerciseCategory::ScaleWorkout,
+            goal: ExerciseGoal::BuildSpeedPicking,
+            target_strategy: TargetStrategy::ScaleRun,
+            default_progression_steps: vec![
+                "I".to_string(),
+                "I".to_string(),
+                "I".to_string(),
+                "I".to_string(),
+            ],
+            default_window_size: 4,
+        },
+        PracticeExercise {
+            id: "economy-picking-flow",
+            name: "Economy picking flow",
+            description: "Keep pick direction through string changes for smooth speed bursts.",
+            category: ExerciseCategory::ScaleWorkout,
+            goal: ExerciseGoal::BuildSpeedPicking,
+            target_strategy: TargetStrategy::ScaleRun,
+            default_progression_steps: vec![
+                "I".to_string(),
+                "I".to_string(),
+                "I".to_string(),
+                "I".to_string(),
+            ],
+            default_window_size: 4,
+        },
+        PracticeExercise {
+            id: "sweep-picking-arpeggios",
+            name: "Sweep picking arpeggios",
+            description: "Glide through chord tones with one continuous pick motion.",
+            category: ExerciseCategory::ScaleWorkout,
+            goal: ExerciseGoal::BuildSpeedPicking,
+            target_strategy: TargetStrategy::ChordToneRun,
+            default_progression_steps: vec![
+                "I".to_string(),
+                "I".to_string(),
+                "I".to_string(),
+                "I".to_string(),
             ],
             default_window_size: 5,
         },
