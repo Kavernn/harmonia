@@ -424,10 +424,6 @@ export function usePracticeEngine({
   async function startPractice() {
     const activePlan = planRef.current;
     if (!activePlan || progressionRef.current.length === 0) return;
-    if (activePlan.input_mode !== "midi") {
-      setError("Le mode live de cette étape supporte seulement le MIDI pour l'instant.");
-      return;
-    }
 
     const runId = transportRunRef.current + 1;
     const sessionId = practiceSessionRef.current + 1;

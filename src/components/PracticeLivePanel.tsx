@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import { noteValue, type FretPosition, type ProgressionChord, type ScaleSuggestion } from "../music";
 import type { PracticePlan, PracticeRepScore, PracticeTarget } from "../practice";
 import type { PracticePhase } from "../hooks/usePracticeEngine";
 import { Fretboard } from "./Fretboard";
+import { PracticeScrollingTab } from "./PracticeScrollingTab";
 
 interface PracticeLivePanelProps {
   plan: PracticePlan | null;
@@ -220,14 +221,15 @@ export function PracticeLivePanel({
   repHistory,
   cueEnabled,
   onToggleCue,
-  onReplayCue,
+  onReplayCue: _onReplayCue,
   onNudgeBpm,
   onStartPractice,
   onStopPractice,
 }: PracticeLivePanelProps) {
   const currentChord = progression[currentStepIndex] ?? null;
   const nextChord = progression[(currentStepIndex + 1) % Math.max(1, progression.length)] ?? currentChord;
-  const canStart = Boolean(plan) && progression.length > 0 && midiStatus === "ready" && midiInputs.length > 0;
+  const earMode = midiStatus !== "ready" || midiInputs.length === 0;
+  const canStart = Boolean(plan) && progression.length > 0;
   const displayedBpm = currentBpm || plan?.start_bpm || 0;
   const latestRepLabelColor = !lastRepScore
     ? "var(--color-text-primary)"
@@ -313,28 +315,20 @@ export function PracticeLivePanel({
   ]);
   const scaleTabSteps = scaleTabData.steps;
   const scaleTabPicks = scaleTabData.picks;
-  const tabStrings = tuningStrings.map((label, index) => ({ label, index })).slice().reverse();
   const tabActiveIndex = phase === "running" && scaleTabSteps.length > 0
     ? currentPulse % scaleTabSteps.length
     : -1;
-  const [tabZoom, setTabZoom] = useState(1);
-  const [tabGlide, setTabGlide] = useState(true);
-  const tabScrollRef = useRef<HTMLDivElement | null>(null);
-  const tabHighlightRef = useRef<HTMLDivElement | null>(null);
-  const glideFrameRef = useRef<number | null>(null);
-  const glidePulseStartRef = useRef<number>(0);
-  const tabColWidth = Math.round(26 * tabZoom);
-  const tabRowHeight = Math.round(22 * tabZoom);
-  const tabHeaderHeight = Math.round(18 * tabZoom);
-  const tabStepStride = tabColWidth + 4;
-  const tabLeadOffset = 44;
   const barLength = 4;
   const npsValue = plan?.scale_run_notes_per_string ?? 3;
   const notesPerBar = Math.max(1, barLength * npsValue);
   const notesPerMinute = scaleWorkoutActive
     ? Math.round(displayedBpm * tempoPulseMultiplier(plan?.tempo_unit))
     : null;
-  const tabActiveBar = tabActiveIndex >= 0 ? Math.floor(tabActiveIndex / notesPerBar) : -1;
+  const pulseDurationMs = (() => {
+    const bpm = Math.max(1, displayedBpm || 1);
+    const pulsesPerQuarter = tempoPulseMultiplier(plan?.tempo_unit) / 4;
+    return (60_000 / bpm) / Math.max(1, pulsesPerQuarter);
+  })();
   const scalePositionLabel = scaleWorkoutActive && plan
     ? `Position ${scalePositionIndex ?? "—"}/${scalePositionCount ?? "—"} · frets ${practiceWindowStart}-${practiceWindowStart + practiceWindowSize}`
     : null;
@@ -362,58 +356,6 @@ export function PracticeLivePanel({
           : "Focus sur la régularité du flow."
     : null;
 
-  useEffect(() => {
-    glidePulseStartRef.current = performance.now();
-  }, [tabActiveIndex]);
-
-  useEffect(() => {
-    if (!tabScrollRef.current || tabActiveIndex < 0) return;
-    if (tabGlide) return;
-    const container = tabScrollRef.current;
-    const targetX = tabLeadOffset + (tabActiveIndex * tabStepStride) + (tabColWidth / 2);
-    const nextScrollLeft = Math.max(0, targetX - (container.clientWidth / 2));
-    const scrollPadding = tabColWidth * 6;
-    const visibleStart = container.scrollLeft + scrollPadding;
-    const visibleEnd = container.scrollLeft + container.clientWidth - scrollPadding;
-    if (targetX < visibleStart || targetX > visibleEnd) {
-      container.scrollTo({ left: nextScrollLeft, behavior: "smooth" });
-    }
-    if (tabHighlightRef.current) {
-      tabHighlightRef.current.style.transform = `translateX(${tabLeadOffset + tabActiveIndex * tabStepStride}px)`;
-    }
-  }, [tabActiveIndex, tabColWidth, tabGlide, tabLeadOffset, tabStepStride]);
-
-  useEffect(() => {
-    if (!tabScrollRef.current || tabActiveIndex < 0 || !tabGlide) return;
-
-    const container = tabScrollRef.current;
-    const bpm = Math.max(1, displayedBpm || 1);
-    const pulsesPerQuarter = tempoPulseMultiplier(plan?.tempo_unit) / 4;
-    const pulseDurationMs = (60_000 / bpm) / Math.max(1, pulsesPerQuarter);
-
-    const tick = () => {
-      const now = performance.now();
-      const progress = Math.min(1, Math.max(0, (now - glidePulseStartRef.current) / pulseDurationMs));
-      const startX = tabLeadOffset + (tabActiveIndex * tabStepStride) + (tabColWidth / 2);
-      const nextX = tabLeadOffset + ((tabActiveIndex + 1) * tabStepStride) + (tabColWidth / 2);
-      const targetX = startX + (nextX - startX) * progress;
-      const nextScrollLeft = Math.max(0, targetX - (container.clientWidth / 2));
-      container.scrollLeft = nextScrollLeft;
-      if (tabHighlightRef.current) {
-        tabHighlightRef.current.style.transform = `translateX(${tabLeadOffset + (tabActiveIndex + progress) * tabStepStride}px)`;
-      }
-      glideFrameRef.current = requestAnimationFrame(tick);
-    };
-
-    glideFrameRef.current = requestAnimationFrame(tick);
-
-    return () => {
-      if (glideFrameRef.current != null) {
-        cancelAnimationFrame(glideFrameRef.current);
-        glideFrameRef.current = null;
-      }
-    };
-  }, [tabActiveIndex, tabColWidth, tabGlide, displayedBpm, plan?.tempo_unit, tabLeadOffset, tabStepStride]);
 
   return (
     <div style={{
@@ -466,93 +408,89 @@ export function PracticeLivePanel({
         </div>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>Tempo</span>
-            <div style={{ display: "flex", gap: 4 }}>
-              {[-5, -1, 1, 5].map((delta) => (
-                <button
-                  key={delta}
-                  onClick={() => onNudgeBpm(delta)}
-                  style={{
-                    border: "0.5px solid var(--color-border-tertiary)",
-                    background: "var(--color-background-primary)",
-                    color: "var(--color-text-secondary)",
-                    borderRadius: "var(--border-radius-sm)",
-                    padding: "2px 6px",
-                    fontSize: 10,
-                    cursor: "pointer",
-                  }}
-                >
-                  {delta > 0 ? `+${delta}` : delta}
-                </button>
-              ))}
+          {/* BPM + nudge */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: "var(--border-radius-md)", background: "var(--color-background-secondary)" }}>
+            <span style={{ fontSize: 28, fontWeight: 800, color: "var(--color-text-primary)", fontVariantNumeric: "tabular-nums", minWidth: 52, textAlign: "right" }}>
+              {displayedBpm}
+            </span>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <span style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>BPM</span>
+              <div style={{ display: "flex", gap: 3 }}>
+                {[-5, -1, 1, 5].map((delta) => (
+                  <button
+                    key={delta}
+                    onClick={() => onNudgeBpm(delta)}
+                    style={{
+                      border: "0.5px solid var(--color-border-tertiary)",
+                      background: "var(--color-background-primary)",
+                      color: "var(--color-text-secondary)",
+                      borderRadius: "var(--border-radius-sm)",
+                      padding: "3px 7px",
+                      fontSize: 11,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {delta > 0 ? `+${delta}` : delta}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-          <button
-            onClick={onToggleCue}
-            style={{
-              border: "0.5px solid var(--color-border-tertiary)",
-              background: cueEnabled ? "var(--color-accent-soft)" : "var(--color-background-primary)",
-              color: cueEnabled ? "var(--color-accent-strong)" : "var(--color-text-secondary)",
-              borderRadius: "var(--border-radius-md)",
-              padding: "8px 10px",
-              fontSize: 11,
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            Cue {cueEnabled ? "on" : "off"}
-          </button>
-          <button
-            onClick={onReplayCue}
-            disabled={!currentTargets.length}
-            style={{
-              border: "0.5px solid var(--color-border-tertiary)",
-              background: "var(--color-background-primary)",
-              color: currentTargets.length ? "var(--color-text-secondary)" : "var(--color-text-tertiary)",
-              borderRadius: "var(--border-radius-md)",
-              padding: "8px 10px",
-              fontSize: 11,
-              fontWeight: 600,
-              cursor: currentTargets.length ? "pointer" : "default",
-              opacity: currentTargets.length ? 1 : 0.55,
-            }}
-          >
-            Replay cue
-          </button>
+          {!ultraMinimal && (
+            <button
+              onClick={onToggleCue}
+              style={{
+                border: "0.5px solid var(--color-border-tertiary)",
+                background: cueEnabled ? "var(--color-accent-soft)" : "var(--color-background-primary)",
+                color: cueEnabled ? "var(--color-accent-strong)" : "var(--color-text-secondary)",
+                borderRadius: "var(--border-radius-md)",
+                padding: "8px 12px",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Cue {cueEnabled ? "on" : "off"}
+            </button>
+          )}
           {isPlaying ? (
             <button
               onClick={onStopPractice}
               style={{
-                border: "1px solid var(--color-danger)",
+                border: "2px solid var(--color-danger)",
                 background: "var(--color-danger-soft)",
                 color: "var(--color-danger)",
                 borderRadius: "var(--border-radius-md)",
-                padding: "8px 12px",
-                fontSize: 11,
+                padding: "12px 24px",
+                fontSize: 14,
                 fontWeight: 700,
                 cursor: "pointer",
               }}
             >
-              Stop workout
+              ■ Stop
             </button>
           ) : (
             <button
               onClick={onStartPractice}
               disabled={!canStart}
               style={{
-                border: "1px solid var(--color-accent-primary)",
-                background: !canStart ? "var(--color-background-tertiary)" : "var(--color-accent-primary)",
+                border: canStart ? "2px solid var(--color-accent-primary)" : "1px solid var(--color-border-tertiary)",
+                background: !canStart ? "var(--color-background-secondary)" : "var(--color-accent-primary)",
                 color: !canStart ? "var(--color-text-tertiary)" : "var(--color-accent-contrast)",
                 borderRadius: "var(--border-radius-md)",
-                padding: "8px 12px",
-              fontSize: 11,
-              fontWeight: 700,
-              cursor: !canStart ? "default" : "pointer",
-            }}
-          >
-            Start workout
+                padding: "12px 28px",
+                fontSize: 14,
+                fontWeight: 700,
+                cursor: !canStart ? "default" : "pointer",
+              }}
+            >
+              ▶ Start
             </button>
+          )}
+          {earMode && (
+            <span style={{ fontSize: 11, color: "var(--color-text-tertiary)", padding: "4px 8px", borderRadius: "var(--border-radius-sm)", background: "var(--color-background-secondary)" }}>
+              Oreille · pas de MIDI
+            </span>
           )}
         </div>
       </div>
@@ -608,6 +546,22 @@ export function PracticeLivePanel({
             )}
           </div>
         </div>
+      )}
+
+      {/* ── Canvas scrolling tab — dominant visual element ── */}
+      {scaleWorkoutActive && (
+        <PracticeScrollingTab
+          steps={scaleTabSteps as Array<{ stringIndex: number; fret: number; note: string }>}
+          picks={scaleTabPicks as string[]}
+          tuningStrings={tuningStrings}
+          activeIndex={tabActiveIndex}
+          pulseDurationMs={pulseDurationMs}
+          bpm={displayedBpm}
+          notesPerBar={notesPerBar}
+          isPlaying={isPlaying}
+          phase={phase}
+          countInBeat={phase === "count_in" ? countInBeat : undefined}
+        />
       )}
 
       {!trainingOnly && !isTabOnly && (
@@ -795,223 +749,17 @@ export function PracticeLivePanel({
             stringLabels={tuningStrings}
           />
 
-          {scaleWorkoutActive && scaleTabSteps.length > 0 && (
+          {scaleWorkoutActive && techniqueLabel && (
             <div style={{
-              marginTop: 12,
-              padding: 10,
-              border: "0.5px solid var(--color-border-tertiary)",
-              borderRadius: "var(--border-radius-lg)",
-              background: "linear-gradient(180deg, rgba(26, 33, 44, 0.96) 0%, rgba(18, 24, 33, 0.96) 100%)",
+              marginTop: 10,
+              padding: "8px 12px",
+              borderRadius: "var(--border-radius-md)",
+              background: "var(--color-accent-soft)",
+              color: "var(--color-accent-primary)",
+              fontSize: 12,
+              fontWeight: 600,
             }}>
-              {!isTabOnly && (
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                  <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
-                    Tab scale workout
-                  </div>
-                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                    <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
-                      {plan?.scale_run_direction ?? "ascending"} · {plan?.scale_run_notes_per_string ?? 3} NPS · {practiceWindowSize} frettes
-                    </div>
-                    <button
-                      onClick={() => setTabGlide((value) => !value)}
-                      style={{
-                        border: "0.5px solid var(--color-border-tertiary)",
-                        background: tabGlide ? "var(--color-success-soft)" : "var(--color-background-primary)",
-                        color: tabGlide ? "var(--color-success)" : "var(--color-text-secondary)",
-                        borderRadius: "var(--border-radius-md)",
-                        padding: "4px 8px",
-                        fontSize: 10,
-                        fontWeight: 600,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Glide {tabGlide ? "on" : "off"}
-                    </button>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <button
-                        onClick={() => setTabZoom((value) => Math.max(0.8, Number((value - 0.1).toFixed(2))))}
-                        style={{
-                          border: "0.5px solid var(--color-border-tertiary)",
-                          background: "var(--color-background-primary)",
-                          color: "var(--color-text-secondary)",
-                          borderRadius: "var(--border-radius-sm)",
-                          padding: "2px 6px",
-                          fontSize: 10,
-                          cursor: "pointer",
-                        }}
-                      >
-                        −
-                      </button>
-                      <input
-                        type="range"
-                        min={0.8}
-                        max={1.4}
-                        step={0.05}
-                        value={tabZoom}
-                        onChange={(event) => setTabZoom(Number(event.target.value))}
-                        style={{ width: 90 }}
-                      />
-                      <button
-                        onClick={() => setTabZoom((value) => Math.min(1.4, Number((value + 0.1).toFixed(2))))}
-                        style={{
-                          border: "0.5px solid var(--color-border-tertiary)",
-                          background: "var(--color-background-primary)",
-                          color: "var(--color-text-secondary)",
-                          borderRadius: "var(--border-radius-sm)",
-                          padding: "2px 6px",
-                          fontSize: 10,
-                          cursor: "pointer",
-                        }}
-                      >
-                        +
-                      </button>
-                      <span style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
-                        {Math.round(tabZoom * 100)}%
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div style={{ marginTop: isTabOnly ? 0 : 8, position: "relative" }}>
-                <div style={{
-                  position: "absolute",
-                  top: 0,
-                  bottom: 0,
-                  left: "50%",
-                  width: 2,
-                  background: "rgba(31, 202, 211, 0.45)",
-                  transform: "translateX(-1px)",
-                  zIndex: 3,
-                }} />
-                <div
-                  ref={tabScrollRef}
-                  style={{
-                    overflowX: "auto",
-                    overflowY: "hidden",
-                    padding: "6px 4px 10px",
-                    scrollBehavior: "smooth",
-                    background: "rgba(15, 20, 28, 0.72)",
-                    border: "1px solid rgba(42, 51, 64, 0.5)",
-                    borderRadius: 12,
-                    backdropFilter: "blur(8px)",
-                  }}
-                >
-                  <div style={{ position: "relative" }}>
-                    <div
-                      ref={tabHighlightRef}
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        bottom: 0,
-                        left: 0,
-                        width: tabColWidth,
-                        borderRadius: 8,
-                        background: "linear-gradient(180deg, rgba(31, 202, 211, 0.2) 0%, rgba(31, 202, 211, 0.35) 100%)",
-                        boxShadow: "0 0 0 1px rgba(31, 202, 211, 0.45)",
-                        pointerEvents: "none",
-                        transform: `translateX(${tabLeadOffset + Math.max(0, tabActiveIndex) * tabStepStride}px)`,
-                      }}
-                    />
-                    <div style={{
-                      display: "grid",
-                      gridTemplateColumns: `40px repeat(${scaleTabSteps.length}, ${tabColWidth}px)`,
-                      gridTemplateRows: `${tabHeaderHeight}px ${tabHeaderHeight}px repeat(${tabStrings.length}, ${tabRowHeight}px)`,
-                      gap: 4,
-                      alignItems: "center",
-                      minWidth: `${40 + scaleTabSteps.length * (tabColWidth + 4)}px`,
-                      fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace",
-                    }}>
-                    <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", textAlign: "right", paddingRight: 4 }}>
-                      Pick
-                    </div>
-                    {scaleTabSteps.map((_, index) => (
-                      <div
-                        key={`tab-head-${index}`}
-                        style={{
-                          fontSize: 11,
-                          textAlign: "center",
-                          color: index === tabActiveIndex ? "var(--color-accent-primary)" : "var(--color-text-tertiary)",
-                          fontWeight: index === tabActiveIndex ? 700 : 400,
-                          background: index === tabActiveIndex
-                            ? "rgba(31, 202, 211, 0.25)"
-                            : (tabActiveBar >= 0 && Math.floor(index / notesPerBar) === tabActiveBar
-                              ? "rgba(31, 202, 211, 0.12)"
-                              : "transparent"),
-                          borderRadius: 6,
-                          height: tabHeaderHeight,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        {scaleTabPicks[index] ?? " "}
-                      </div>
-                    ))}
-                    <div style={{ fontSize: 10, color: "var(--color-text-tertiary)", textAlign: "right", paddingRight: 4 }}>
-                      Beat
-                    </div>
-                    {scaleTabSteps.map((_, index) => (
-                      <div
-                        key={`tab-beat-${index}`}
-                        style={{
-                          fontSize: 10,
-                          textAlign: "center",
-                          color: index % npsValue === 0 ? "var(--color-success)" : "transparent",
-                          fontWeight: 700,
-                          height: tabHeaderHeight,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          background: tabActiveBar >= 0 && Math.floor(index / notesPerBar) === tabActiveBar
-                            ? "rgba(31, 202, 211, 0.18)"
-                            : "transparent",
-                          borderRadius: 6,
-                        }}
-                      >
-                        {index % npsValue === 0 ? `${Math.floor((index % notesPerBar) / npsValue) + 1}` : ""}
-                      </div>
-                    ))}
-                    {tabStrings.map((string) => (
-                      <div key={`tab-${string.index}`} style={{ display: "contents" }}>
-                        <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", textAlign: "right", paddingRight: 4 }}>
-                          {string.label}
-                        </div>
-                        {scaleTabSteps.map((step, index) => (
-                          <div
-                            key={`tab-${string.index}-${index}`}
-                            style={{
-                              fontSize: 12,
-                              textAlign: "center",
-                              height: tabRowHeight,
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              borderRadius: 6,
-                              backgroundColor: step.stringIndex === string.index
-                                ? (index === tabActiveIndex ? "var(--color-accent-primary)" : "var(--color-accent-soft)")
-                                : (index === tabActiveIndex ? "rgba(31, 202, 211, 0.14)" : "transparent"),
-                              color: step.stringIndex === string.index
-                                ? (index === tabActiveIndex ? "var(--color-accent-contrast)" : "var(--color-accent-primary)")
-                                : "var(--color-text-tertiary)",
-                              boxShadow: index === tabActiveIndex && step.stringIndex === string.index
-                                ? "0 0 0 1px rgba(31, 202, 211, 0.35)"
-                                : "none",
-                              borderLeft: index % notesPerBar === 0 ? "1px solid rgba(31, 202, 211, 0.4)" : "none",
-                              borderBottom: "1px solid rgba(42, 51, 64, 0.4)",
-                              backgroundImage: tabActiveBar >= 0 && Math.floor(index / notesPerBar) === tabActiveBar
-                                ? "linear-gradient(0deg, rgba(31, 202, 211, 0.08), rgba(31, 202, 211, 0.08))"
-                                : "none",
-                            }}
-                          >
-                            {step.stringIndex === string.index ? step.fret : "–"}
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
+              {techniqueLabel}{techniqueTip ? ` · ${techniqueTip}` : ""}
             </div>
           )}
 

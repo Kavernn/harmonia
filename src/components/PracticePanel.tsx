@@ -1118,53 +1118,29 @@ export function PracticePanel({
             ))}
           </div>
         )}
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
-            Export / Import presets (JSON)
-          </div>
-          <textarea
-            value={presetClipboard}
-            onChange={(event) => setPresetClipboard(event.target.value)}
-            rows={4}
-            style={{
-              border: "0.5px solid var(--color-border-tertiary)",
-              borderRadius: "var(--border-radius-md)",
-              padding: "8px 10px",
-              fontSize: 10,
-              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace",
-            }}
-          />
-          <div style={{ display: "flex", gap: 6 }}>
-            <button
-              onClick={exportPresets}
+        <details style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+          <summary style={{ cursor: "pointer", userSelect: "none" }}>Export / Import JSON</summary>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+            <textarea
+              value={presetClipboard}
+              onChange={(event) => setPresetClipboard(event.target.value)}
+              rows={3}
               style={{
                 border: "0.5px solid var(--color-border-tertiary)",
+                borderRadius: "var(--border-radius-md)",
+                padding: "6px 8px",
+                fontSize: 10,
+                fontFamily: "ui-monospace, monospace",
                 background: "var(--color-background-primary)",
                 color: "var(--color-text-secondary)",
-                borderRadius: "var(--border-radius-sm)",
-                padding: "4px 6px",
-                fontSize: 10,
-                cursor: "pointer",
               }}
-            >
-              Exporter
-            </button>
-            <button
-              onClick={importPresets}
-              style={{
-                border: "0.5px solid var(--color-border-tertiary)",
-                background: "var(--color-background-primary)",
-                color: "var(--color-text-secondary)",
-                borderRadius: "var(--border-radius-sm)",
-                padding: "4px 6px",
-                fontSize: 10,
-                cursor: "pointer",
-              }}
-            >
-              Importer
-            </button>
+            />
+            <div style={{ display: "flex", gap: 6 }}>
+              <button onClick={exportPresets} style={{ border: "0.5px solid var(--color-border-tertiary)", background: "var(--color-background-primary)", color: "var(--color-text-secondary)", borderRadius: "var(--border-radius-sm)", padding: "3px 6px", fontSize: 10, cursor: "pointer" }}>Exporter</button>
+              <button onClick={importPresets} style={{ border: "0.5px solid var(--color-border-tertiary)", background: "var(--color-background-primary)", color: "var(--color-text-secondary)", borderRadius: "var(--border-radius-sm)", padding: "3px 6px", fontSize: 10, cursor: "pointer" }}>Importer</button>
+            </div>
           </div>
-        </div>
+        </details>
       </div>
 
       <div style={{
