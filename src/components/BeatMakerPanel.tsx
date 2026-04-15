@@ -116,11 +116,11 @@ export function BeatMakerPanel({
             <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>Steps</div>
             {Array.from({ length: beatPattern.steps_per_bar }, (_, step) => (
               <div key={step} style={{
-                height: 16,
+                height: 24,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: step % 4 === 0 ? 11 : 9,
+                fontSize: step % 4 === 0 ? 11 : 10,
                 fontWeight: step % 4 === 0 ? 700 : 400,
                 color: step % 4 === 0 ? "var(--color-accent-strong)" : "var(--color-text-tertiary)",
               }}>
@@ -138,8 +138,8 @@ export function BeatMakerPanel({
                 const accentAlpha = Math.max(0.2, (event?.velocity ?? 0) / 127);
                 return (
                   <button key={step} type="button" onClick={() => { onCycleBeatStep(voice, step); onPreviewVoice(voice); }} title={`${voice} · step ${step + 1} · ${velocityLabel}${event ? ` · vel ${event.velocity}` : ""}`} style={{
-                    height: 18,
-                    borderRadius: 4,
+                    height: 28,
+                    borderRadius: 5,
                     border: step % 4 === 0 ? "1px solid var(--color-accent-primary)" : "0.5px solid var(--color-border-tertiary)",
                     background: active
                       ? `rgba(31, 202, 211, ${accentAlpha})`
@@ -153,7 +153,7 @@ export function BeatMakerPanel({
             </div>
           ))}
         </div>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 12, fontSize: 10, color: "var(--color-text-tertiary)" }}>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 12, fontSize: 11, color: "var(--color-text-tertiary)" }}>
           <span>Clic: normal</span>
           <span>2e clic: accent</span>
           <span>3e clic: soft</span>

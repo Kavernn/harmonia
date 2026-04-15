@@ -266,7 +266,7 @@ export function FretboardMasteryPanel({
             { color: "rgba(255, 80, 80, 0.6)", label: "Notes à éviter" },
             { color: "rgba(150, 120, 255, 0.8)", label: "Notes de résolution" },
           ] as const).map(({ color, label }) => (
-            <div key={label} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "var(--color-text-tertiary)" }}>
+            <div key={label} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--color-text-tertiary)" }}>
               <div style={{ width: 10, height: 10, borderRadius: "50%", background: color, flexShrink: 0 }} />
               {label}
             </div>

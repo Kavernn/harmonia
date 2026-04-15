@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { noteValue, type FretPosition, type ProgressionChord, type ScaleSuggestion } from "../music";
 import type { PracticePlan, PracticeRepScore, PracticeTarget } from "../practice";
 import type { PracticePhase } from "../hooks/usePracticeEngine";
@@ -226,6 +226,13 @@ export function PracticeLivePanel({
   onStartPractice,
   onStopPractice,
 }: PracticeLivePanelProps) {
+  const [tabPositionOverride, setTabPositionOverride] = useState<number | null>(null);
+
+  // Reset position override when scale changes
+  useEffect(() => {
+    setTabPositionOverride(null);
+  }, [plan?.solo_scale_root, plan?.solo_scale_name]);
+
   const currentChord = progression[currentStepIndex] ?? null;
   const nextChord = progression[(currentStepIndex + 1) % Math.max(1, progression.length)] ?? currentChord;
   const earMode = midiStatus !== "ready" || midiInputs.length === 0;
@@ -299,12 +306,41 @@ export function PracticeLivePanel({
   // Tab NPS: for exercises use configured value; otherwise show all notes on each string
   const tabNotesPerString = scaleWorkoutActive ? (plan?.scale_run_notes_per_string ?? 3) : 99;
   const tabDirection = plan?.scale_run_direction ?? "ascending";
+
+  // Compute natural positions where the scale fits within the window
+  const availableTabPositions = useMemo(() => {
+    if (sanitizedScalePositions.length === 0) return [];
+    const numStrings = tuningStrings.length;
+    const nps = scaleWorkoutActive ? tabNotesPerString : 1;
+    const maxFret = Math.max(0, ...sanitizedScalePositions.map((p) => p.fret));
+    const lastStart = Math.max(0, maxFret - tabWindowSize);
+    const positionsByString: number[][] = Array.from({ length: numStrings }, () => []);
+    sanitizedScalePositions.forEach((pos) => {
+      if (!pos.is_avoid && pos.string >= 0 && pos.string < numStrings) {
+        positionsByString[pos.string].push(pos.fret);
+      }
+    });
+    positionsByString.forEach((frets) => frets.sort((a, b) => a - b));
+    const positions: number[] = [];
+    for (let start = 0; start <= lastStart; start++) {
+      const end = start + tabWindowSize;
+      const ok = positionsByString.every(
+        (frets) => frets.filter((f) => f >= start && f <= end).length >= nps,
+      );
+      if (ok) positions.push(start);
+    }
+    return positions;
+  }, [sanitizedScalePositions, tuningStrings.length, tabWindowSize, tabNotesPerString, scaleWorkoutActive]);
+
+  // User-selected position overrides the auto-computed window start
+  const effectiveTabStart = tabPositionOverride ?? practiceWindowStart;
+
   const scaleTabData = useMemo(() => {
     if (sanitizedScalePositions.length === 0) return { steps: [], picks: [] } as const;
     return buildScaleTabSequence(
       sanitizedScalePositions,
       tuningStrings.length,
-      practiceWindowStart,
+      effectiveTabStart,
       tabWindowSize,
       tabNotesPerString,
       tabDirection,
@@ -312,7 +348,7 @@ export function PracticeLivePanel({
   }, [
     sanitizedScalePositions,
     tuningStrings.length,
-    practiceWindowStart,
+    effectiveTabStart,
     tabWindowSize,
     tabNotesPerString,
     tabDirection,
@@ -331,13 +367,10 @@ export function PracticeLivePanel({
   const notesPerMinute = scaleWorkoutActive
     ? Math.round(displayedBpm * tempoPulseMultiplier(plan?.tempo_unit))
     : null;
-  const pulseDurationMs = (() => {
-    const bpm = Math.max(1, displayedBpm || 1);
-    const pulsesPerQuarter = tempoPulseMultiplier(plan?.tempo_unit) / 4;
-    return (60_000 / bpm) / Math.max(1, pulsesPerQuarter);
-  })();
+  // Engine fires at sixteenth-note resolution: pulseDurationMs = (60000/bpm) / multiplier
+  const pulseDurationMs = (60_000 / Math.max(1, displayedBpm || 1)) / Math.max(1, tempoPulseMultiplier(plan?.tempo_unit ?? "quarter"));
   const scalePositionLabel = scaleWorkoutActive && plan
-    ? `Position ${scalePositionIndex ?? "—"}/${scalePositionCount ?? "—"} · frets ${practiceWindowStart}-${practiceWindowStart + practiceWindowSize}`
+    ? `Position ${scalePositionIndex ?? "—"}/${scalePositionCount ?? "—"} · frets ${effectiveTabStart}-${effectiveTabStart + practiceWindowSize}`
     : null;
   const paletteLabel = selectedScale
     ? `${selectedScale.scale_root} ${selectedScale.scale_name}`
@@ -401,13 +434,13 @@ export function PracticeLivePanel({
           )}
           {!ultraMinimal && plan && (
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
-              <span style={{ fontSize: 10, padding: "4px 8px", borderRadius: 999, background: "var(--color-accent-soft)", color: "var(--color-accent-strong)", fontWeight: 600 }}>
+              <span style={{ fontSize: 11, padding: "4px 8px", borderRadius: 999, background: "var(--color-accent-soft)", color: "var(--color-accent-strong)", fontWeight: 600 }}>
                 {plan.category}
               </span>
-              <span style={{ fontSize: 10, padding: "4px 8px", borderRadius: 999, background: "var(--color-accent-soft)", color: "var(--color-accent-primary)", fontWeight: 600 }}>
+              <span style={{ fontSize: 11, padding: "4px 8px", borderRadius: 999, background: "var(--color-accent-soft)", color: "var(--color-accent-primary)", fontWeight: 600 }}>
                 {plan.goal}
               </span>
-              <span style={{ fontSize: 10, padding: "4px 8px", borderRadius: 999, background: "var(--color-success-soft)", color: "var(--color-success)", fontWeight: 600 }}>
+              <span style={{ fontSize: 11, padding: "4px 8px", borderRadius: 999, background: "var(--color-success-soft)", color: "var(--color-success)", fontWeight: 600 }}>
                 {plan.target_strategy}
               </span>
             </div>
@@ -421,7 +454,7 @@ export function PracticeLivePanel({
               {displayedBpm}
             </span>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>BPM</span>
+              <span style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>BPM</span>
               <div style={{ display: "flex", gap: 3 }}>
                 {[-5, -1, 1, 5].map((delta) => (
                   <button
@@ -514,44 +547,87 @@ export function PracticeLivePanel({
           background: "var(--color-background-secondary)",
         }}>
           <div>
-            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>BPM</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 4 }}>
+            <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>BPM</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 4 }}>
               {displayedBpm}
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>Notes/min</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-success)", marginTop: 4 }}>
+            <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>Notes/min</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "var(--color-success)", marginTop: 4 }}>
               {notesPerMinute ?? "—"}
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>Streak clean</div>
-            <div style={{ fontSize: 18, fontWeight: 700, color: "var(--color-accent-strong)", marginTop: 4 }}>
+            <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>Streak clean</div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "var(--color-accent-strong)", marginTop: 4 }}>
               {consecutiveCleanReps}
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>Pattern</div>
+            <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>Pattern</div>
             <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 6 }}>
               {plan?.scale_run_direction ?? "ascending"} · {npsValue} NPS
             </div>
             {scalePositionLabel && (
-              <div style={{ fontSize: 10, color: "var(--color-text-tertiary)", marginTop: 6 }}>
+              <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 6 }}>
                 {scalePositionLabel}
               </div>
             )}
             {techniqueLabel && (
-              <div style={{ fontSize: 10, color: "var(--color-accent-primary)", marginTop: 6, fontWeight: 600 }}>
+              <div style={{ fontSize: 11, color: "var(--color-accent-primary)", marginTop: 6, fontWeight: 600 }}>
                 {techniqueLabel}
               </div>
             )}
             {techniqueTip && (
-              <div style={{ fontSize: 10, color: "var(--color-text-tertiary)", marginTop: 4 }}>
+              <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 4 }}>
                 {techniqueTip}
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── Position picker ── */}
+      {availableTabPositions.length > 0 && (
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          <span style={{ fontSize: 11, color: "var(--color-text-tertiary)", flexShrink: 0 }}>
+            Position manche
+          </span>
+          <button
+            onClick={() => setTabPositionOverride(null)}
+            style={{
+              border: tabPositionOverride === null ? "1.5px solid var(--color-accent-primary)" : "0.5px solid var(--color-border-tertiary)",
+              background: tabPositionOverride === null ? "var(--color-accent-soft)" : "var(--color-background-primary)",
+              color: tabPositionOverride === null ? "var(--color-accent-strong)" : "var(--color-text-secondary)",
+              borderRadius: "var(--border-radius-sm)",
+              padding: "4px 10px",
+              fontSize: 11,
+              fontWeight: tabPositionOverride === null ? 600 : 400,
+              cursor: "pointer",
+            }}
+          >
+            Auto
+          </button>
+          {availableTabPositions.map((start) => (
+            <button
+              key={start}
+              onClick={() => setTabPositionOverride(start)}
+              style={{
+                border: tabPositionOverride === start ? "1.5px solid var(--color-accent-primary)" : "0.5px solid var(--color-border-tertiary)",
+                background: tabPositionOverride === start ? "var(--color-accent-primary)" : "var(--color-background-primary)",
+                color: tabPositionOverride === start ? "var(--color-accent-contrast)" : "var(--color-text-secondary)",
+                borderRadius: "var(--border-radius-sm)",
+                padding: "4px 8px",
+                fontSize: 11,
+                fontWeight: tabPositionOverride === start ? 600 : 400,
+                cursor: "pointer",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {start}–{start + tabWindowSize}
+            </button>
+          ))}
         </div>
       )}
 
@@ -615,13 +691,13 @@ export function PracticeLivePanel({
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "center" }}>
-                  <div style={{ fontSize: 10, color: active ? "var(--color-accent-contrast)" : "var(--color-text-tertiary)" }}>
+                  <div style={{ fontSize: 11, color: active ? "var(--color-accent-contrast)" : "var(--color-text-tertiary)" }}>
                     {step.roman}
                   </div>
                   <span style={{
                     borderRadius: 999,
                     padding: "2px 6px",
-                    fontSize: 9,
+                    fontSize: 10,
                     fontWeight: 700,
                     background: active ? "var(--color-accent-soft)" : "var(--color-background-tertiary)",
                     color: active ? "var(--color-accent-strong)" : hasTarget ? "var(--color-accent-primary)" : "var(--color-text-secondary)",
@@ -632,11 +708,11 @@ export function PracticeLivePanel({
                 <div style={{ fontSize: 15, fontWeight: 700, marginTop: 5 }}>
                   {step.display_name}
                 </div>
-                <div style={{ fontSize: 10, color: active ? "var(--color-accent-contrast)" : "var(--color-text-tertiary)", marginTop: 5 }}>
+                <div style={{ fontSize: 11, color: active ? "var(--color-accent-contrast)" : "var(--color-text-tertiary)", marginTop: 5 }}>
                   {step.chord_tones.join(" · ")}
                 </div>
                 {hasTarget && (
-                  <div style={{ fontSize: 10, color: active ? "var(--color-accent-contrast)" : "var(--color-accent-primary)", marginTop: 6, fontWeight: 600 }}>
+                  <div style={{ fontSize: 11, color: active ? "var(--color-accent-contrast)" : "var(--color-accent-primary)", marginTop: 6, fontWeight: 600 }}>
                     Target maintenant
                   </div>
                 )}
@@ -655,7 +731,7 @@ export function PracticeLivePanel({
               padding: "12px",
               background: "var(--color-background-secondary)",
             }}>
-              <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+              <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>
                 Focus now
               </div>
               <div style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 6 }}>
@@ -682,7 +758,7 @@ export function PracticeLivePanel({
               padding: "12px",
               background: "var(--color-background-secondary)",
             }}>
-              <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+              <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>
                 Corrige maintenant
               </div>
               {weakest ? (
@@ -716,7 +792,7 @@ export function PracticeLivePanel({
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "baseline", flexWrap: "wrap", marginBottom: 10 }}>
             <div>
-              <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+              <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>
                 Practice fretboard
               </div>
               <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text-primary)", marginTop: 3 }}>
@@ -743,7 +819,7 @@ export function PracticeLivePanel({
             currentPulseTotal={Math.max(1, currentPulseTotal || focusTarget?.pulse_total || 4)}
             tempoUnit={plan?.tempo_unit ?? "quarter"}
             phraseGuides={[]}
-            windowStart={practiceWindowStart}
+            windowStart={effectiveTabStart}
             windowSize={practiceWindowSize}
             showAvoid={false}
             flash={false}
@@ -792,7 +868,7 @@ export function PracticeLivePanel({
             padding: "12px",
             background: "var(--color-background-secondary)",
           }}>
-            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+            <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>
               Maintenant
             </div>
             {phase === "count_in" ? (
@@ -825,7 +901,7 @@ export function PracticeLivePanel({
             padding: "12px",
             background: "var(--color-background-secondary)",
           }}>
-            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+            <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>
               Cibles actives
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
@@ -857,10 +933,10 @@ export function PracticeLivePanel({
             padding: "12px",
             background: "var(--color-background-secondary)",
           }}>
-            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+            <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>
               Retour MIDI
             </div>
-            <div style={{ fontSize: 24, fontWeight: 700, color: heardNote ? (heardNote.hit ? "var(--color-success)" : "var(--color-danger)") : "var(--color-text-primary)", marginTop: 6 }}>
+            <div style={{ fontSize: 32, fontWeight: 700, color: heardNote ? (heardNote.hit ? "var(--color-success)" : "var(--color-danger)") : "var(--color-text-primary)", marginTop: 6 }}>
               {heardNote?.noteLabel ?? "—"}
             </div>
             <div style={{ fontSize: 12, color: "var(--color-text-secondary)", marginTop: 4 }}>
@@ -882,7 +958,7 @@ export function PracticeLivePanel({
             padding: "12px",
             background: "var(--color-background-secondary)",
           }}>
-            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+            <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>
               Tempo ladder
             </div>
             <div style={{ fontSize: 24, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 6 }}>
@@ -899,7 +975,7 @@ export function PracticeLivePanel({
             padding: "12px",
             background: "var(--color-background-secondary)",
           }}>
-            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+            <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>
               Streak propre
             </div>
             <div style={{ fontSize: 24, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 6 }}>
@@ -916,7 +992,7 @@ export function PracticeLivePanel({
             padding: "12px",
             background: "var(--color-background-secondary)",
           }}>
-            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+            <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>
               Dernière rep
             </div>
             <div style={{ fontSize: 24, fontWeight: 700, color: latestRepLabelColor, marginTop: 6 }}>
@@ -926,7 +1002,7 @@ export function PracticeLivePanel({
               {lastRepScore ? (lastRepScore.clean_rep ? "clean rep" : "à resserrer") : "En attente du premier cycle"}
             </div>
             {lastRepScore && (
-              <div style={{ fontSize: 10, color: "var(--color-text-tertiary)", marginTop: 6 }}>
+              <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginTop: 6 }}>
                 pitch {lastRepScore.pitch_score} · timing {lastRepScore.timing_score} · targets {lastRepScore.target_score}
               </div>
             )}
@@ -938,7 +1014,7 @@ export function PracticeLivePanel({
             padding: "12px",
             background: "var(--color-background-secondary)",
           }}>
-            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+            <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>
               Historique court
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 10 }}>
@@ -976,7 +1052,7 @@ export function PracticeLivePanel({
           flexDirection: "column",
           gap: 4,
         }}>
-          <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+          <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>
             Feedback
           </div>
           {lastRepScore.feedback.slice(0, 3).map((line) => (

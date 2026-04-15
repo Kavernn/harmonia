@@ -53,25 +53,25 @@ export function DashboardPanel({
         <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>Practice dashboard</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 10, marginTop: 12 }}>
           <div style={{ padding: "10px 12px", borderRadius: "var(--border-radius-md)", background: "var(--color-background-secondary)" }}>
-            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>Best clean BPM</div>
+            <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>Best clean BPM</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 4 }}>
               {bestCleanBpm ?? "—"}
             </div>
           </div>
           <div style={{ padding: "10px 12px", borderRadius: "var(--border-radius-md)", background: "var(--color-background-secondary)" }}>
-            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>Clean streak</div>
+            <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>Clean streak</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-accent-strong)", marginTop: 4 }}>
               {streakClean}
             </div>
           </div>
           <div style={{ padding: "10px 12px", borderRadius: "var(--border-radius-md)", background: "var(--color-background-secondary)" }}>
-            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>Sessions totales</div>
+            <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>Sessions totales</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 4 }}>
               {totalSessions || "—"}
             </div>
           </div>
           <div style={{ padding: "10px 12px", borderRadius: "var(--border-radius-md)", background: "var(--color-background-secondary)" }}>
-            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>Temps total</div>
+            <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>Temps total</div>
             <div style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text-primary)", marginTop: 4 }}>
               {totalMinutes > 0 ? `${totalMinutes}m` : "—"}
             </div>
@@ -104,21 +104,21 @@ export function DashboardPanel({
                   : "var(--color-border-tertiary)";
               return (
                 <div key={index} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                  <div style={{ fontSize: 9, color: "var(--color-text-tertiary)" }}>{session.final_bpm}</div>
+                  <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{session.final_bpm}</div>
                   <div style={{
                     width: "100%",
                     height,
                     borderRadius: 3,
                     background: barColor,
                   }} title={`${formatDate(session.started_at)} · ${session.clean_rep_count}/${session.rep_count} clean · ${session.final_bpm} BPM · ${formatMinutes(session.started_at, session.ended_at)}`} />
-                  <div style={{ fontSize: 9, color: "var(--color-text-tertiary)" }}>
+                  <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
                     {formatDate(session.started_at)}
                   </div>
                 </div>
               );
             })}
           </div>
-          <div style={{ fontSize: 10, color: "var(--color-text-tertiary)", marginTop: 8 }}>
+          <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 8 }}>
             Cyan = ≥80% clean · hover pour détails
           </div>
         </div>

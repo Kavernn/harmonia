@@ -121,10 +121,10 @@ export function CommandPalette({ actions, onClose }: CommandPaletteProps) {
                 {showGroup && (
                   <div style={{
                     padding: "10px 10px 6px",
-                    fontSize: 10,
+                    fontSize: 11,
                     color: "var(--color-text-tertiary)",
                     textTransform: "uppercase",
-                    letterSpacing: "0.08em",
+                    letterSpacing: "0.07em",
                   }}>
                     {action.group}
                   </div>
@@ -152,8 +152,8 @@ export function CommandPalette({ actions, onClose }: CommandPaletteProps) {
                   }}
                 >
                   <span style={{ fontSize: 13, fontWeight: 500 }}>{action.label}</span>
-                  <span style={{ fontSize: 10, color: active ? "var(--color-accent-primary)" : "var(--color-text-tertiary)" }}>
-                    Enter
+                  <span style={{ fontSize: 11, color: active ? "var(--color-accent-primary)" : "var(--color-text-tertiary)" }}>
+                    ↵
                   </span>
                 </button>
               </div>

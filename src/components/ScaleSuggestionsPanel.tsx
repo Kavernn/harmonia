@@ -9,7 +9,7 @@ function Badge({ level }: { level: string }) {
   const [background, color] = tones[level] ?? tones.low;
 
   return (
-    <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 99, background, color, fontWeight: 500 }}>
+    <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, background, color, fontWeight: 500 }}>
       {level}
     </span>
   );

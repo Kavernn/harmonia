@@ -48,6 +48,14 @@
 
   --color-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
 
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-md: 13px;
+  --font-size-lg: 15px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 22px;
+  --font-size-3xl: 28px;
+
   color-scheme: dark;
   font-family: var(--font-sans);
   font-size: 16px;

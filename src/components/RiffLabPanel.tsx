@@ -525,8 +525,8 @@ export function RiffLabPanel({
               background: showTabView ? "var(--color-accent-primary)" : "var(--color-background-primary)",
               color: showTabView ? "var(--color-accent-contrast)" : "var(--color-text-tertiary)",
               borderRadius: "var(--border-radius-md)",
-              padding: "4px 8px",
-              fontSize: 10,
+              padding: "6px 10px",
+              fontSize: 11,
               fontWeight: 600,
               cursor: "pointer",
             }}
@@ -559,9 +559,9 @@ export function RiffLabPanel({
                   title={isLocked ? `Step ${index + 1}: locker (clic pour délocker)` : `Step ${index + 1}: clic pour locker`}
                   style={{
                     flex: 1,
-                    minWidth: 14,
-                    height: 14,
-                    borderRadius: 2,
+                    minWidth: 18,
+                    height: 20,
+                    borderRadius: 3,
                     border: isLocked ? "1.5px solid var(--color-accent-primary)" : "0.5px solid var(--color-border-tertiary)",
                     background: isLocked ? "var(--color-accent-primary)" : "var(--color-background-primary)",
                     cursor: "pointer",
@@ -571,7 +571,7 @@ export function RiffLabPanel({
               );
             })}
           </div>
-          <div style={{ fontSize: 10, color: "var(--color-text-tertiary)", marginTop: 4 }}>
+          <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 4 }}>
             Clic sur un carré = locker/délocker ce step
           </div>
         </div>

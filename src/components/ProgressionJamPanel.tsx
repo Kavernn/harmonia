@@ -499,12 +499,12 @@ export function ProgressionJamPanel({
                 <div style={{ fontSize: 16, fontWeight: 500, color: active ? "var(--color-accent-contrast)" : style.color }}>
                   {step.display_name}
                 </div>
-                <div style={{ fontSize: 10, color: active ? "var(--color-accent-contrast)" : "var(--color-text-tertiary)", marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: active ? "var(--color-accent-contrast)" : "var(--color-text-tertiary)", marginTop: 2 }}>
                   {step.roman}
                 </div>
                 <div style={{ marginTop: 6, display: "flex", justifyContent: "center" }}>
                   <span style={{
-                    fontSize: 9,
+                    fontSize: 10,
                     fontWeight: 600,
                     borderRadius: 99,
                     padding: "2px 6px",
@@ -515,7 +515,7 @@ export function ProgressionJamPanel({
                   </span>
                 </div>
                 {step.outside_harmony_tones.length > 0 && (
-                  <div style={{ fontSize: 9, color: active ? "var(--color-accent-contrast)" : "var(--color-text-tertiary)", marginTop: 5 }}>
+                  <div style={{ fontSize: 10, color: active ? "var(--color-accent-contrast)" : "var(--color-text-tertiary)", marginTop: 5 }}>
                     Couleur: {step.outside_harmony_tones.join(" · ")}
                   </div>
                 )}

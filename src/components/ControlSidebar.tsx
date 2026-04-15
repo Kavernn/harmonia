@@ -81,10 +81,10 @@ export function ControlSidebar({
             padding: "8px 4px",
             textAlign: "center",
           }}>
-            <div style={{ fontSize: 9, color: "var(--color-text-tertiary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+            <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
               {item.label}
             </div>
-            <div style={{ fontSize: 10, color: "var(--color-text-primary)", fontWeight: 600, marginTop: 2 }}>
+            <div style={{ fontSize: 12, color: "var(--color-text-primary)", fontWeight: 600, marginTop: 2 }}>
               {item.value}
             </div>
           </div>

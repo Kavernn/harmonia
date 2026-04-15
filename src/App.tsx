@@ -62,8 +62,8 @@ export default function App() {
                 background: mainView === view.id ? "var(--color-accent-primary)" : "var(--color-background-primary)",
                 color: mainView === view.id ? "var(--color-accent-contrast)" : "var(--color-text-secondary)",
                 borderRadius: "var(--border-radius-md)",
-                padding: "7px 12px",
-                fontSize: 11,
+                padding: "8px 14px",
+                fontSize: 13,
                 fontWeight: mainView === view.id ? 600 : 500,
                 cursor: "pointer",
               }}>
@@ -97,7 +97,7 @@ export default function App() {
             }}>
               Commandes
             </button>
-            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)", textAlign: "right" }}>
+            <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", textAlign: "right" }}>
               ⌘K commandes · Space play/stop · D·J·W·S·B·R·M vues · [ sidebar · ←/→ accord
             </div>
           </div>

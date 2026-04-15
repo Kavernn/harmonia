@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef } from "react"; // useEffect used for RAF loop only
 
 interface TabStep {
   stringIndex: number;
@@ -54,18 +54,12 @@ export function PracticeScrollingTab({
   const pulseStartRef = useRef(performance.now());
   const prevActiveIndexRef = useRef(-1);
 
-  // Update params ref each render
-  useEffect(() => {
-    paramsRef.current = { steps, picks, tuningStrings, activeIndex, pulseDurationMs, bpm, notesPerBar, isPlaying, phase, countInBeat };
-  });
-
-  // Reset pulse start time when activeIndex changes (new beat)
-  useEffect(() => {
-    if (activeIndex !== prevActiveIndexRef.current) {
-      pulseStartRef.current = performance.now();
-      prevActiveIndexRef.current = activeIndex;
-    }
-  });
+  // Update params ref and pulse timing inline each render (no effect lag)
+  paramsRef.current = { steps, picks, tuningStrings, activeIndex, pulseDurationMs, bpm, notesPerBar, isPlaying, phase, countInBeat };
+  if (activeIndex !== prevActiveIndexRef.current) {
+    pulseStartRef.current = performance.now();
+    prevActiveIndexRef.current = activeIndex;
+  }
 
   useEffect(() => {
     const canvas = canvasRef.current;

@@ -867,8 +867,8 @@ export function PracticePanel({
                 background: "var(--color-background-primary)",
                 color: "var(--color-text-secondary)",
                 borderRadius: "var(--border-radius-sm)",
-                padding: "2px 6px",
-                fontSize: 10,
+                padding: "4px 8px",
+                fontSize: 11,
                 cursor: "pointer",
               }}
             >
@@ -887,7 +887,7 @@ export function PracticePanel({
           <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>
             4. Active “Focus mode” pour épurer l’écran et te concentrer.
           </div>
-          <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+          <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
             Raccourcis utiles: `Space` play/stop · `W` practice · `S` ouvrir setup.
           </div>
         </div>
@@ -1015,7 +1015,7 @@ export function PracticePanel({
               }}
             >
               <div style={{ fontSize: 12, fontWeight: 600 }}>{preset.label}</div>
-              <div style={{ fontSize: 10, color: "var(--color-text-tertiary)", marginTop: 3 }}>
+              <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 3 }}>
                 {preset.description}
               </div>
             </button>
@@ -1067,7 +1067,7 @@ export function PracticePanel({
                 }}
               >
                 <div style={{ fontSize: 12, fontWeight: 600 }}>{preset.name}</div>
-                <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+                <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
                   {preset.exerciseId} · {preset.tempoUnit} · {preset.startBpm}→{preset.targetBpm}
                 </div>
                 <div style={{ display: "flex", gap: 6 }}>
@@ -1078,8 +1078,8 @@ export function PracticePanel({
                       background: "var(--color-background-primary)",
                       color: "var(--color-text-secondary)",
                       borderRadius: "var(--border-radius-sm)",
-                      padding: "4px 6px",
-                      fontSize: 10,
+                      padding: "5px 8px",
+                      fontSize: 11,
                       cursor: "pointer",
                     }}
                   >
@@ -1092,8 +1092,8 @@ export function PracticePanel({
                       background: "var(--color-danger-soft)",
                       color: "var(--color-danger)",
                       borderRadius: "var(--border-radius-sm)",
-                      padding: "4px 6px",
-                      fontSize: 10,
+                      padding: "5px 8px",
+                      fontSize: 11,
                       cursor: "pointer",
                     }}
                   >
@@ -1106,8 +1106,8 @@ export function PracticePanel({
                       background: defaultPresetId === preset.id ? "var(--color-accent-soft)" : "var(--color-background-primary)",
                       color: defaultPresetId === preset.id ? "var(--color-accent-primary)" : "var(--color-text-secondary)",
                       borderRadius: "var(--border-radius-sm)",
-                      padding: "4px 6px",
-                      fontSize: 10,
+                      padding: "5px 8px",
+                      fontSize: 11,
                       cursor: "pointer",
                     }}
                   >
@@ -1118,7 +1118,7 @@ export function PracticePanel({
             ))}
           </div>
         )}
-        <details style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+        <details style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
           <summary style={{ cursor: "pointer", userSelect: "none" }}>Export / Import JSON</summary>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
             <textarea
@@ -1129,15 +1129,15 @@ export function PracticePanel({
                 border: "0.5px solid var(--color-border-tertiary)",
                 borderRadius: "var(--border-radius-md)",
                 padding: "6px 8px",
-                fontSize: 10,
+                fontSize: 11,
                 fontFamily: "ui-monospace, monospace",
                 background: "var(--color-background-primary)",
                 color: "var(--color-text-secondary)",
               }}
             />
             <div style={{ display: "flex", gap: 6 }}>
-              <button onClick={exportPresets} style={{ border: "0.5px solid var(--color-border-tertiary)", background: "var(--color-background-primary)", color: "var(--color-text-secondary)", borderRadius: "var(--border-radius-sm)", padding: "3px 6px", fontSize: 10, cursor: "pointer" }}>Exporter</button>
-              <button onClick={importPresets} style={{ border: "0.5px solid var(--color-border-tertiary)", background: "var(--color-background-primary)", color: "var(--color-text-secondary)", borderRadius: "var(--border-radius-sm)", padding: "3px 6px", fontSize: 10, cursor: "pointer" }}>Importer</button>
+              <button onClick={exportPresets} style={{ border: "0.5px solid var(--color-border-tertiary)", background: "var(--color-background-primary)", color: "var(--color-text-secondary)", borderRadius: "var(--border-radius-sm)", padding: "5px 8px", fontSize: 11, cursor: "pointer" }}>Exporter</button>
+              <button onClick={importPresets} style={{ border: "0.5px solid var(--color-border-tertiary)", background: "var(--color-background-primary)", color: "var(--color-text-secondary)", borderRadius: "var(--border-radius-sm)", padding: "5px 8px", fontSize: 11, cursor: "pointer" }}>Importer</button>
             </div>
           </div>
         </details>
@@ -1338,7 +1338,7 @@ export function PracticePanel({
             </label>
           )}
           {scaleCycleEnabled && (
-            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+            <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
               {scaleCycleLabel ? `En cours: ${scaleCycleLabel} · ${scaleCycleIndex + 1}/${scaleCycleSize}` : "En cours: —"}
             </div>
           )}
@@ -1381,7 +1381,7 @@ export function PracticePanel({
             minWidth: 160,
             backdropFilter: "blur(8px)",
           }}>
-            <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.08em", opacity: 0.7 }}>
+            <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", opacity: 0.7 }}>
               Practice live
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 12 }}>
@@ -1653,7 +1653,7 @@ export function PracticePanel({
               >
                 <option value="midi">MIDI</option>
               </select>
-              <span style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+              <span style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
                 Le live workout est MIDI-only pour l'instant.
               </span>
             </label>
@@ -1775,19 +1775,19 @@ export function PracticePanel({
 
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
                     <div>
-                      <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>Progression</div>
+                      <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>Progression</div>
                       <div style={{ fontSize: 12, color: "var(--color-text-primary)", marginTop: 4 }}>
                         {plan.progression_steps.join(" · ")}
                       </div>
                     </div>
                     <div>
-                      <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>Durées</div>
+                      <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>Durées</div>
                       <div style={{ fontSize: 12, color: "var(--color-text-primary)", marginTop: 4 }}>
                         {plan.step_durations.join(" · ")}
                       </div>
                     </div>
                     <div>
-                      <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>Tempo ladder</div>
+                      <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>Tempo ladder</div>
                       <div style={{ fontSize: 12, color: "var(--color-text-primary)", marginTop: 4 }}>
                         {plan.start_bpm} → {plan.target_bpm} (+{plan.bpm_step})
                       </div>
@@ -1832,7 +1832,7 @@ export function PracticePanel({
                       <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text-primary)" }}>
                         {target.chord_name} · {target.role}
                       </div>
-                      <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+                      <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
                         pulse {target.pulse_index + 1}/{target.pulse_total}
                       </div>
                     </div>
@@ -1890,7 +1890,7 @@ export function PracticePanel({
           Routine active
         </label>
         {routineProgressLabel && routineEnabled && (
-          <div style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>
+          <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
             {routineProgressLabel} · {routineStep?.cycles ?? 0} cycles/step
           </div>
         )}
