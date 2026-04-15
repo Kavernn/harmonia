@@ -33,7 +33,7 @@ interface PracticePanelProps {
   targetBpm: number;
   bpmStep: number;
   repsPerLevel: number;
-  countInBars: number;
+  countInEnabled: boolean;
   inputMode: PracticeInputModeId;
   windowSize: number;
   positionStart: number | null;
@@ -68,7 +68,7 @@ interface PracticePanelProps {
   onTargetBpmChange: (value: number) => void;
   onBpmStepChange: (value: number) => void;
   onRepsPerLevelChange: (value: number) => void;
-  onCountInBarsChange: (value: number) => void;
+  onCountInEnabledChange: (value: boolean) => void;
   onInputModeChange: (value: PracticeInputModeId) => void;
   onWindowSizeChange: (value: number) => void;
   onPositionStartChange: (value: number | null) => void;
@@ -202,7 +202,7 @@ export function PracticePanel({
   targetBpm,
   bpmStep,
   repsPerLevel,
-  countInBars,
+  countInEnabled,
   inputMode,
   windowSize,
   positionStart,
@@ -237,7 +237,7 @@ export function PracticePanel({
   onTargetBpmChange,
   onBpmStepChange,
   onRepsPerLevelChange,
-  onCountInBarsChange,
+  onCountInEnabledChange,
   onInputModeChange,
   onWindowSizeChange,
   onPositionStartChange,
@@ -1684,8 +1684,23 @@ export function PracticePanel({
             </label>
 
             <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, color: "var(--color-text-tertiary)" }}>
-              Count-in
-              {numberInput(countInBars, 0, 8, onCountInBarsChange)}
+              Count-in (4 temps)
+              <button
+                onClick={() => onCountInEnabledChange(!countInEnabled)}
+                style={{
+                  border: "0.5px solid var(--color-border-tertiary)",
+                  background: countInEnabled ? "var(--color-accent-soft)" : "var(--color-background-primary)",
+                  color: countInEnabled ? "var(--color-accent-strong)" : "var(--color-text-secondary)",
+                  borderRadius: "var(--border-radius-md)",
+                  padding: "8px 10px",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  textAlign: "left",
+                }}
+              >
+                {countInEnabled ? "Activé" : "Désactivé"}
+              </button>
             </label>
           </div>
 

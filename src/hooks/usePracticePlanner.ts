@@ -46,7 +46,7 @@ export function usePracticePlanner({
   const [targetBpm, setTargetBpm] = usePersistentState("harmonia.practice.target-bpm", 110);
   const [bpmStep, setBpmStep] = usePersistentState("harmonia.practice.bpm-step", 5);
   const [repsPerLevel, setRepsPerLevel] = usePersistentState("harmonia.practice.reps-per-level", 2);
-  const [countInBars, setCountInBars] = usePersistentState("harmonia.practice.count-in-bars", 1);
+  const [countInEnabled, setCountInEnabled] = usePersistentState("harmonia.practice.count-in-enabled", true);
   const [inputMode, setInputMode] = usePersistentState<PracticeInputModeId>(
     "harmonia.practice.input-mode",
     "midi",
@@ -166,7 +166,7 @@ export function usePracticePlanner({
           target_bpm: clampNumber(targetBpm, 40, 260),
           bpm_step: clampNumber(bpmStep, 1, 20),
           reps_per_level: clampNumber(repsPerLevel, 1, 16),
-          count_in_bars: clampNumber(countInBars, 0, 8),
+          count_in_bars: countInEnabled ? 1 : 0,
           input_mode: inputMode,
           window_size: clampNumber(windowSize, 4, 12),
           position_start: positionStart ?? undefined,
@@ -196,7 +196,7 @@ export function usePracticePlanner({
   }, [
     activeExercise,
     activeSteps,
-    countInBars,
+    countInEnabled,
     bpmStep,
     harmonyRoot,
     harmonyScaleName,
@@ -261,7 +261,7 @@ export function usePracticePlanner({
     targetBpm,
     bpmStep,
     repsPerLevel,
-    countInBars,
+    countInEnabled,
     inputMode,
     windowSize,
     positionStart,
@@ -277,7 +277,7 @@ export function usePracticePlanner({
     onTargetBpmChange: setTargetBpm,
     onBpmStepChange: setBpmStep,
     onRepsPerLevelChange: setRepsPerLevel,
-    onCountInBarsChange: setCountInBars,
+    onCountInEnabledChange: setCountInEnabled,
     onInputModeChange: setInputMode,
     onWindowSizeChange: setWindowSize,
     onPositionStartChange: setPositionStart,

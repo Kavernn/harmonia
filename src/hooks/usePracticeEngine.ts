@@ -457,7 +457,7 @@ export function usePracticeEngine({
     pulseRef.current = 0;
     globalPulseRef.current = 0;
     countInPulseRef.current = 0;
-    countInRemainingRef.current = practiceCountInPulses(activePlan.count_in_bars);
+    countInRemainingRef.current = practiceCountInPulses(activePlan.count_in_bars, activePlan.tempo_unit);
     completedCyclesRef.current = 0;
     remainingPulsesRef.current = pulsesForDuration(activePlan.step_durations[0] ?? "quarter");
     nextPulseTimeRef.current = audioRef.current.getCurrentTime() + START_DELAY_SECONDS;

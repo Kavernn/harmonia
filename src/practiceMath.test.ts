@@ -53,7 +53,11 @@ test("midi notes can be matched against target pitch classes", () => {
 });
 
 test("count-in helpers expose pulse and beat counts", () => {
-  assert.equal(practiceCountInPulses(2), 32);
+  // Always 4 beats regardless of countInBars value (as long as > 0)
+  assert.equal(practiceCountInPulses(1), 16);  // 4 beats × 4 pulses/beat (quarter)
+  assert.equal(practiceCountInPulses(2), 16);  // same: 4 beats, not 2 bars
+  assert.equal(practiceCountInPulses(0), 0);   // disabled → no count-in
+  assert.equal(practiceCountInPulses(1, "eighth"), 8);  // 4 beats × 2 pulses/beat (eighth)
   assert.equal(practiceCountInBeatLabel(8, "quarter"), 2);
   assert.equal(practiceCountInBeatLabel(4, "quarter"), 1);
 });

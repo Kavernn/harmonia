@@ -27,8 +27,11 @@ export function practiceTargetHit(targets: PracticeTarget[], midi: number) {
   return targets.some((target) => target.pitch_classes.includes(pitchClass));
 }
 
-export function practiceCountInPulses(countInBars: number) {
-  return Math.max(0, countInBars) * 16;
+export function practiceCountInPulses(countInBars: number, tempoUnit?: NoteValueId) {
+  if (countInBars <= 0) return 0;
+  // 4 beats × pulsesPerBeat, independent of bar structure
+  const pulsesPerBeat = tempoUnit ? clickEveryPulses(tempoUnit) : 4;
+  return 4 * pulsesPerBeat;
 }
 
 export function practiceCountInBeatLabel(
