@@ -13,6 +13,7 @@ import {
   HARMONY_SCALES,
   NOTES,
   buildTuningPresets,
+  resolveOpenStringMidis,
   type AccompanimentToneId,
   type NoteValueId,
   type StrumStyleId,
@@ -448,6 +449,83 @@ export function useComposerState() {
     return () => window.removeEventListener("keydown", handleKeyboardShortcut);
   }, []);
 
+  // ── Beat standalone playback ──────────────────────────────────────────────
+  const [isBeatPlaying, setIsBeatPlaying] = useState(false);
+  const beatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const beatStepRef = useRef(0);
+
+  function startBeatPlayback() {
+    const pattern = beatComposer.beatPattern;
+    if (!pattern) return;
+    if (beatIntervalRef.current) clearInterval(beatIntervalRef.current);
+
+    const stepMs = (60 * 4000) / (bpm * pattern.steps_per_bar);
+    beatStepRef.current = 0;
+    setIsBeatPlaying(true);
+    void audio.unlockAudio();
+
+    const playStep = (step: number) => {
+      const events = pattern.events.filter((e) => e.step === step);
+      audio.playBeatStep(events, step, stepMs, pattern.swing);
+    };
+
+    playStep(0);
+    beatIntervalRef.current = setInterval(() => {
+      beatStepRef.current = (beatStepRef.current + 1) % pattern.steps_per_bar;
+      playStep(beatStepRef.current);
+    }, stepMs);
+  }
+
+  function stopBeatPlayback() {
+    if (beatIntervalRef.current) {
+      clearInterval(beatIntervalRef.current);
+      beatIntervalRef.current = null;
+    }
+    setIsBeatPlaying(false);
+  }
+
+  // ── Riff playback ────────────────────────────────────────────────────────
+  const [isRiffPlaying, setIsRiffPlaying] = useState(false);
+  const riffIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const riffStepRef = useRef(0);
+
+  function startRiffPlayback(
+    steps: Array<{ stringIndex: number; fret: number }>,
+    bpm: number,
+    notesPerBar: number,
+  ) {
+    if (!steps.length) return;
+    if (riffIntervalRef.current) clearInterval(riffIntervalRef.current);
+
+    const openStringMidis = resolveOpenStringMidis(selectedTuning.strings);
+    const stepMs = (60 * 4) / (bpm * notesPerBar) * 1000;
+    riffStepRef.current = 0;
+    setIsRiffPlaying(true);
+
+    void audio.unlockAudio();
+
+    const playStep = (index: number) => {
+      const step = steps[index];
+      if (!step) return;
+      const baseMidi = openStringMidis[step.stringIndex] ?? 40;
+      audio.playGuideTone(baseMidi + step.fret);
+    };
+
+    playStep(0);
+    riffIntervalRef.current = setInterval(() => {
+      riffStepRef.current = (riffStepRef.current + 1) % steps.length;
+      playStep(riffStepRef.current);
+    }, stepMs);
+  }
+
+  function stopRiffPlayback() {
+    if (riffIntervalRef.current) {
+      clearInterval(riffIntervalRef.current);
+      riffIntervalRef.current = null;
+    }
+    setIsRiffPlaying(false);
+  }
+
   const commandActions: CommandAction[] = [
     {
       id: "view-dashboard",
@@ -681,9 +759,11 @@ export function useComposerState() {
       onSelectCompatibleMode: setSoloPalette,
     },
     dashboardProps: {
-      lastSession: practiceEngine.lastSessionSummary,
-      bestCleanBpm: practiceEngine.lastSessionSummary?.best_clean_bpm ?? null,
+      // lastSessionSummary is in-memory; fall back to persisted sessionHistory on reload
+      lastSession: practiceEngine.lastSessionSummary ?? practiceEngine.sessionHistory[0] ?? null,
+      bestCleanBpm: Math.max(0, ...practiceEngine.sessionHistory.map((s) => s.best_clean_bpm ?? 0)) || null,
       streakClean: practiceEngine.consecutiveCleanReps,
+      sessionHistory: practiceEngine.sessionHistory,
       onOpenPractice: () => setMainView("practice"),
       onOpenFretboard: () => setMainView("fretboard"),
       onOpenRiff: () => setMainView("riff"),
@@ -702,8 +782,11 @@ export function useComposerState() {
       selectedScale,
       tuningStrings: selectedTuning.strings,
       scalePositions,
+      isRiffPlaying,
       onExportRiff: exportRiff,
       onExportRiffMidi: exportRiffMidi,
+      onPlayRiff: startRiffPlayback,
+      onStopRiff: stopRiffPlayback,
     },
     beatMakerProps: beatComposer.beatPattern ? {
       beatLibrary: beatComposer.beatLibrary,
@@ -712,11 +795,14 @@ export function useComposerState() {
       beatIntensity: beatComposer.beatIntensity,
       beatSwing: beatComposer.beatSwing,
       beatPatternDirty: beatComposer.beatPatternDirty,
+      isBeatPlaying,
       onSelectBeatStyle: beatComposer.setSelectedBeatStyle,
       onBeatIntensityChange: beatComposer.setBeatIntensity,
       onBeatSwingChange: beatComposer.setBeatSwing,
       onResetBeatPattern: beatComposer.resetBeatPattern,
       onCycleBeatStep: beatComposer.cycleBeatStep,
+      onStartBeat: startBeatPlayback,
+      onStopBeat: stopBeatPlayback,
     } : null,
     practicePanelProps: {
       harmonyRootName: NOTES[harmonyRoot],

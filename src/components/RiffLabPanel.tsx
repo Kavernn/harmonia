@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { FretPosition, ScaleSuggestion } from "../music";
+import { usePersistentState } from "../hooks/usePersistentState";
 
 interface RiffStep {
   stringIndex: number;
@@ -12,8 +13,11 @@ interface RiffLabPanelProps {
   selectedScale: ScaleSuggestion | null;
   tuningStrings: string[];
   scalePositions: FretPosition[];
+  isRiffPlaying: boolean;
   onExportRiff: (lines: string[]) => void;
   onExportRiffMidi: (steps: RiffStep[], tempo: number) => void;
+  onPlayRiff: (steps: RiffStep[], bpm: number, notesPerBar: number) => void;
+  onStopRiff: () => void;
 }
 
 function seededRandom(seed: number) {
@@ -42,26 +46,29 @@ export function RiffLabPanel({
   selectedScale,
   tuningStrings,
   scalePositions,
+  isRiffPlaying,
   onExportRiff,
   onExportRiffMidi,
+  onPlayRiff,
+  onStopRiff,
 }: RiffLabPanelProps) {
-  const [sections, setSections] = useState<Array<{
+  const [sections, setSections] = usePersistentState<Array<{
     id: string;
     name: string;
     bars: number;
     notesPerBar: number;
     seed: string;
-  }>>([
+  }>>("harmonia.riff-sections", [
     { id: "A", name: "Verse", bars: 4, notesPerBar: 8, seed: "verse" },
     { id: "B", name: "Chorus", bars: 4, notesPerBar: 8, seed: "chorus" },
   ]);
-  const [activeSectionId, setActiveSectionId] = useState("A");
-  const [windowSize, setWindowSize] = useState(5);
-  const [positionStart, setPositionStart] = useState<number | null>(null);
-  const [includeAvoid, setIncludeAvoid] = useState(false);
-  const [accentPattern, setAccentPattern] = useState<"straight" | "gallop" | "syncopated">("straight");
-  const [palmMute, setPalmMute] = useState(false);
-  const [tempoBpm, setTempoBpm] = useState(120);
+  const [activeSectionId, setActiveSectionId] = usePersistentState("harmonia.riff-active-section", "A");
+  const [windowSize, setWindowSize] = usePersistentState("harmonia.riff-window-size", 5);
+  const [positionStart, setPositionStart] = usePersistentState<number | null>("harmonia.riff-position-start", null);
+  const [includeAvoid, setIncludeAvoid] = usePersistentState("harmonia.riff-include-avoid", false);
+  const [accentPattern, setAccentPattern] = usePersistentState<"straight" | "gallop" | "syncopated">("harmonia.riff-accent-pattern", "straight");
+  const [palmMute, setPalmMute] = usePersistentState("harmonia.riff-palm-mute", false);
+  const [tempoBpm, setTempoBpm] = usePersistentState("harmonia.riff-tempo-bpm", 120);
   const activeSection = sections.find((section) => section.id === activeSectionId) ?? sections[0];
   const bars = activeSection?.bars ?? 2;
   const notesPerBar = activeSection?.notesPerBar ?? 8;
@@ -259,6 +266,28 @@ export function RiffLabPanel({
               Remove section
             </button>
           )}
+          <button
+            onClick={() => {
+              if (isRiffPlaying) {
+                onStopRiff();
+              } else {
+                onPlayRiff(riffSteps, tempoBpm, notesPerBar);
+              }
+            }}
+            disabled={riffSteps.length === 0}
+            style={{
+              border: isRiffPlaying ? "1.5px solid var(--color-accent-primary)" : "0.5px solid var(--color-border-tertiary)",
+              background: isRiffPlaying ? "var(--color-accent-primary)" : "var(--color-background-primary)",
+              color: isRiffPlaying ? "var(--color-accent-contrast)" : "var(--color-text-secondary)",
+              borderRadius: "var(--border-radius-md)",
+              padding: "6px 12px",
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: riffSteps.length === 0 ? "default" : "pointer",
+            }}
+          >
+            {isRiffPlaying ? "Stop" : "Play"}
+          </button>
           <button
             onClick={() => onExportRiff(exportLines)}
             style={{

@@ -83,33 +83,8 @@ export default function App() {
             }}>
               Commandes
             </button>
-            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-              <span style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>Workflow:</span>
-              {([
-                { id: "practice", label: "Practice" },
-                { id: "fretboard", label: "Fretboard" },
-                { id: "riff", label: "Riff" },
-              ] as const).map((view) => (
-                <button
-                  key={view.id}
-                  onClick={() => setMainView(view.id)}
-                  style={{
-                    border: "0.5px solid var(--color-border-tertiary)",
-                    background: mainView === view.id ? "var(--color-accent-soft)" : "var(--color-background-primary)",
-                    color: mainView === view.id ? "var(--color-accent-strong)" : "var(--color-text-secondary)",
-                    borderRadius: "var(--border-radius-sm)",
-                    padding: "4px 8px",
-                    fontSize: 10,
-                    cursor: "pointer",
-                    fontWeight: 600,
-                  }}
-                >
-                  {view.label}
-                </button>
-              ))}
-            </div>
-            <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", textAlign: "right" }}>
-              `⌘K` actions · `Space` play/stop · `D` dashboard · `W` practice · `R` riff · `M` fretboard · `[` sidebar · `←/→` pas
+            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)", textAlign: "right" }}>
+              ⌘K commandes · Space play/stop · D·J·W·S·B·R·M vues · [ sidebar · ←/→ accord
             </div>
           </div>
         </div>

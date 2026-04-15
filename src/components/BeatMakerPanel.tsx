@@ -7,11 +7,14 @@ interface BeatMakerPanelProps {
   beatIntensity: number;
   beatSwing: number;
   beatPatternDirty: boolean;
+  isBeatPlaying: boolean;
   onSelectBeatStyle: (styleId: string) => void;
   onBeatIntensityChange: (value: number) => void;
   onBeatSwingChange: (value: number) => void;
   onResetBeatPattern: () => void;
   onCycleBeatStep: (voice: string, step: number) => void;
+  onStartBeat: () => void;
+  onStopBeat: () => void;
 }
 
 export function BeatMakerPanel({
@@ -21,18 +24,38 @@ export function BeatMakerPanel({
   beatIntensity,
   beatSwing,
   beatPatternDirty,
+  isBeatPlaying,
   onSelectBeatStyle,
   onBeatIntensityChange,
   onBeatSwingChange,
   onResetBeatPattern,
   onCycleBeatStep,
+  onStartBeat,
+  onStopBeat,
 }: BeatMakerPanelProps) {
   const beatGridColumns = `88px repeat(${beatPattern.steps_per_bar}, 1fr)`;
 
   return (
     <div>
-      <div style={{ fontSize: 11, fontWeight: 500, color: "var(--color-text-secondary)", marginBottom: 12 }}>
-        Beatmaking — {beatPattern.name}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+        <div style={{ fontSize: 11, fontWeight: 500, color: "var(--color-text-secondary)" }}>
+          Beatmaking — {beatPattern.name}
+        </div>
+        <button
+          onClick={() => { if (isBeatPlaying) { onStopBeat(); } else { onStartBeat(); } }}
+          style={{
+            border: isBeatPlaying ? "1.5px solid var(--color-accent-primary)" : "0.5px solid var(--color-border-tertiary)",
+            background: isBeatPlaying ? "var(--color-accent-primary)" : "var(--color-background-primary)",
+            color: isBeatPlaying ? "var(--color-accent-contrast)" : "var(--color-text-secondary)",
+            borderRadius: "var(--border-radius-md)",
+            padding: "5px 12px",
+            fontSize: 11,
+            fontWeight: 700,
+            cursor: "pointer",
+          }}
+        >
+          {isBeatPlaying ? "Stop" : "Play"}
+        </button>
       </div>
 
       <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
