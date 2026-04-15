@@ -548,21 +548,19 @@ export function PracticeLivePanel({
         </div>
       )}
 
-      {/* ── Canvas scrolling tab — dominant visual element ── */}
-      {scaleWorkoutActive && (
-        <PracticeScrollingTab
-          steps={scaleTabSteps as Array<{ stringIndex: number; fret: number; note: string }>}
-          picks={scaleTabPicks as string[]}
-          tuningStrings={tuningStrings}
-          activeIndex={tabActiveIndex}
-          pulseDurationMs={pulseDurationMs}
-          bpm={displayedBpm}
-          notesPerBar={notesPerBar}
-          isPlaying={isPlaying}
-          phase={phase}
-          countInBeat={phase === "count_in" ? countInBeat : undefined}
-        />
-      )}
+      {/* ── Canvas scrolling tab — always visible ── */}
+      <PracticeScrollingTab
+        steps={scaleTabSteps as Array<{ stringIndex: number; fret: number; note: string }>}
+        picks={scaleTabPicks as string[]}
+        tuningStrings={tuningStrings}
+        activeIndex={tabActiveIndex}
+        pulseDurationMs={pulseDurationMs}
+        bpm={displayedBpm}
+        notesPerBar={notesPerBar}
+        isPlaying={isPlaying}
+        phase={phase}
+        countInBeat={phase === "count_in" ? countInBeat : undefined}
+      />
 
       {!trainingOnly && !isTabOnly && (
         <div style={{

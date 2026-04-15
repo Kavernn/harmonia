@@ -136,11 +136,13 @@ export function PracticeScrollingTab({
       ctx!.setLineDash([]);
 
       if (steps.length === 0) {
-        // Placeholder message
-        ctx!.fillStyle = "#3a4252";
+        ctx!.fillStyle = "#2a3040";
         ctx!.font = "13px sans-serif";
         ctx!.textAlign = "center";
-        ctx!.fillText("Selectionne un exercice scale workout pour voir la tablature", w / 2, h / 2);
+        ctx!.fillText("← Sélectionne un preset (ex: Scale run) dans le setup pour voir la tablature", w / 2, h / 2 - 10);
+        ctx!.fillStyle = "#1e2530";
+        ctx!.font = "11px sans-serif";
+        ctx!.fillText("La tab se génère automatiquement selon le manche + NPS choisis", w / 2, h / 2 + 14);
         rafId = requestAnimationFrame(draw);
         return;
       }
