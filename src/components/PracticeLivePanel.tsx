@@ -332,8 +332,13 @@ export function PracticeLivePanel({
     return positions;
   }, [sanitizedScalePositions, tuningStrings.length, tabWindowSize, tabNotesPerString, scaleWorkoutActive]);
 
-  // User-selected position overrides the auto-computed window start
-  const effectiveTabStart = tabPositionOverride ?? practiceWindowStart;
+  // For scale workout, use a stable window start (plan position or first natural position)
+  // For other exercises, follow the chord dynamically
+  const stableTabStart = scaleWorkoutActive
+    ? (plan?.position_start ?? availableTabPositions[0] ?? practiceWindowStart)
+    : practiceWindowStart;
+  // User-selected position overrides the stable window start
+  const effectiveTabStart = tabPositionOverride ?? stableTabStart;
 
   const scaleTabData = useMemo(() => {
     if (sanitizedScalePositions.length === 0) return { steps: [], picks: [] } as const;
@@ -355,8 +360,13 @@ export function PracticeLivePanel({
   ]);
   const scaleTabSteps = scaleTabData.steps;
   const scaleTabPicks = scaleTabData.picks;
+  // Global pulse within the current cycle: advances across both step index and pulse index
+  // currentPulse alone resets at each chord step — we need the cumulative count
+  const globalPulseInCycle = currentPulseTotal > 0
+    ? currentStepIndex * currentPulseTotal + currentPulse
+    : currentStepIndex;
   const tabActiveIndex = phase === "running" && scaleTabSteps.length > 0
-    ? currentPulse % scaleTabSteps.length
+    ? globalPulseInCycle % scaleTabSteps.length
     : -1;
   const barLength = 4;
   const npsValue = plan?.scale_run_notes_per_string ?? 3;
