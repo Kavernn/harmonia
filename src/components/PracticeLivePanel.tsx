@@ -294,24 +294,28 @@ export function PracticeLivePanel({
   const weakest = useMemo(() => weakestArea(lastRepScore), [lastRepScore]);
   const focusTarget = focusTargets[0] ?? null;
   const scaleWorkoutActive = plan?.exercise_id === "scale-speed-picking";
+  // Tab window: for exercises use the plan window; otherwise show full 12-fret position
+  const tabWindowSize = scaleWorkoutActive ? practiceWindowSize : 12;
+  // Tab NPS: for exercises use configured value; otherwise show all notes on each string
+  const tabNotesPerString = scaleWorkoutActive ? (plan?.scale_run_notes_per_string ?? 3) : 99;
+  const tabDirection = plan?.scale_run_direction ?? "ascending";
   const scaleTabData = useMemo(() => {
-    if (!scaleWorkoutActive) return { steps: [], picks: [] } as const;
+    if (sanitizedScalePositions.length === 0) return { steps: [], picks: [] } as const;
     return buildScaleTabSequence(
       sanitizedScalePositions,
       tuningStrings.length,
       practiceWindowStart,
-      practiceWindowSize,
-      plan?.scale_run_notes_per_string ?? 3,
-      plan?.scale_run_direction ?? "ascending",
+      tabWindowSize,
+      tabNotesPerString,
+      tabDirection,
     );
   }, [
-    scaleWorkoutActive,
     sanitizedScalePositions,
     tuningStrings.length,
     practiceWindowStart,
-    practiceWindowSize,
-    plan?.scale_run_direction,
-    plan?.scale_run_notes_per_string,
+    tabWindowSize,
+    tabNotesPerString,
+    tabDirection,
   ]);
   const scaleTabSteps = scaleTabData.steps;
   const scaleTabPicks = scaleTabData.picks;
@@ -320,7 +324,10 @@ export function PracticeLivePanel({
     : -1;
   const barLength = 4;
   const npsValue = plan?.scale_run_notes_per_string ?? 3;
-  const notesPerBar = Math.max(1, barLength * npsValue);
+  // For bar grouping: use actual strings × npsValue when in exercise, otherwise group by tuning string count
+  const notesPerBar = scaleWorkoutActive
+    ? Math.max(1, barLength * npsValue)
+    : Math.max(1, tuningStrings.length); // one "bar" = one full string traversal
   const notesPerMinute = scaleWorkoutActive
     ? Math.round(displayedBpm * tempoPulseMultiplier(plan?.tempo_unit))
     : null;

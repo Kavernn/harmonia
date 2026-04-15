@@ -139,10 +139,10 @@ export function PracticeScrollingTab({
         ctx!.fillStyle = "#2a3040";
         ctx!.font = "13px sans-serif";
         ctx!.textAlign = "center";
-        ctx!.fillText("← Sélectionne un preset (ex: Scale run) dans le setup pour voir la tablature", w / 2, h / 2 - 10);
+        ctx!.fillText("Sélectionne une gamme dans la sidebar pour afficher la tablature", w / 2, h / 2 - 8);
         ctx!.fillStyle = "#1e2530";
         ctx!.font = "11px sans-serif";
-        ctx!.fillText("La tab se génère automatiquement selon le manche + NPS choisis", w / 2, h / 2 + 14);
+        ctx!.fillText("La tab se génère selon toutes les positions de la gamme sur le manche", w / 2, h / 2 + 14);
         rafId = requestAnimationFrame(draw);
         return;
       }
