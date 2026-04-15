@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
   analyzeProgressionRequest,
   buildProgressionRequest,
@@ -45,6 +45,10 @@ export function useScaleAnalysis({
   const [harmonyRoot, setHarmonyRoot] = usePersistentState("harmonia.harmony-root", 0);
   const [harmonyScaleName, setHarmonyScaleName] = usePersistentState("harmonia.harmony-scale", "Ionian");
   const [minConf, setMinConf] = usePersistentState("harmonia.min-confidence", "high");
+  const [userSavedProgressions, setUserSavedProgressions] = usePersistentState<Array<{ name: string; steps: string[]; feel: string }>>(
+    "harmonia.user-progressions",
+    []
+  );
 
   const [soloScaleRoot, setSoloScaleRoot] = usePersistentState("harmonia.solo-scale-root", 0);
   const [soloScaleName, setSoloScaleName] = usePersistentState("harmonia.solo-scale-name", "Ionian");
@@ -90,22 +94,33 @@ export function useScaleAnalysis({
     total_chords: progression.length > 0 ? progression.length : undefined,
   };
 
+  const namedProgsRequestIdRef = useRef(0);
   useEffect(() => {
+    const requestId = ++namedProgsRequestIdRef.current;
     getSuggestedProgressions(harmonyRoot, harmonyScaleName)
-      .then(setNamedProgs)
+      .then((result) => {
+        if (requestId === namedProgsRequestIdRef.current) {
+          setNamedProgs(result);
+        }
+      })
       .catch((cause) => {
         console.error(cause);
-        setNamedProgs([]);
+        if (requestId === namedProgsRequestIdRef.current) {
+          setNamedProgs([]);
+        }
       });
   }, [harmonyRoot, harmonyScaleName]);
 
+  const stepOptionsRequestIdRef = useRef(0);
   useEffect(() => {
+    const requestId = ++stepOptionsRequestIdRef.current;
     getProgressionStepOptions(harmonyRoot, harmonyScaleName)
-      .then(setProgressionStepOptions)
-      .catch((cause) => {
-        console.error(cause);
-        setProgressionStepOptions(fallbackProgressionStepOptionsForHarmony(harmonyScaleName));
-      });
+      .then((result) => {
+        if (requestId === stepOptionsRequestIdRef.current) {
+          setProgressionStepOptions(result);
+        }
+      })
+      .catch(console.error);
   }, [harmonyRoot, harmonyScaleName]);
 
   useEffect(() => {
@@ -186,13 +201,29 @@ export function useScaleAnalysis({
     void loadScaleFretboard();
   }, [soloScaleRoot, soloScaleName, tuningKey]);
 
+  function saveProgressionAsPreset(name: string) {
+    if (!activeSteps.length) return;
+    const prog = { name, steps: activeSteps, feel: "custom" };
+    setUserSavedProgressions((prev) => {
+      const filtered = prev.filter((p) => p.name !== name);
+      return [...filtered, prog];
+    });
+  }
+
+  function deleteSavedProgression(name: string) {
+    setUserSavedProgressions((prev) => prev.filter((p) => p.name !== name));
+  }
+
+  const allNamedProgs = [...namedProgs, ...userSavedProgressions];
+
   return {
     harmonyRoot,
     harmonyScaleName,
     minConf,
     scales,
     selectedScale,
-    namedProgs,
+    namedProgs: allNamedProgs,
+    userSavedProgressionNames: userSavedProgressions.map((p) => p.name),
     compatibleModes,
     activeSteps,
     progressionStepOptions,
@@ -203,6 +234,8 @@ export function useScaleAnalysis({
     setHarmonyRoot,
     setHarmonyScaleName,
     setMinConf,
+    saveProgressionAsPreset,
+    deleteSavedProgression,
     setSelectedScale: (scale: ScaleSuggestion) => {
       const rootIndex = NOTES.indexOf(scale.scale_root);
       if (rootIndex !== -1) {

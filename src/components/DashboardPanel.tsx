@@ -5,6 +5,7 @@ interface DashboardPanelProps {
   bestCleanBpm: number | null;
   streakClean: number;
   sessionHistory: PracticeSessionSummary[];
+  selectedScaleLabel: string | null;  // ex: "E Dorian"
   onOpenPractice: () => void;
   onOpenFretboard: () => void;
   onOpenRiff: () => void;
@@ -26,6 +27,7 @@ export function DashboardPanel({
   bestCleanBpm,
   streakClean,
   sessionHistory,
+  selectedScaleLabel,
   onOpenPractice,
   onOpenFretboard,
   onOpenRiff,
@@ -164,7 +166,7 @@ export function DashboardPanel({
         >
           <div style={{ fontSize: 12, fontWeight: 700 }}>Practice</div>
           <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 4 }}>
-            Routines, BPM, precision
+            {selectedScaleLabel ? `Gamme: ${selectedScaleLabel}` : "Routines, BPM, precision"}
           </div>
         </button>
         <button

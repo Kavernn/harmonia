@@ -80,6 +80,8 @@ interface PracticePanelProps {
   onToggleCue: () => void;
   onReplayCue: () => void;
   onNudgeBpm: (delta: number) => void;
+  practiceWithBeat: boolean;
+  onTogglePracticeWithBeat: () => void;
   onStartPractice: () => void;
   onStopPractice: () => void;
   onClearPracticeHistory: () => void;
@@ -247,6 +249,8 @@ export function PracticePanel({
   onToggleCue,
   onReplayCue,
   onNudgeBpm,
+  practiceWithBeat,
+  onTogglePracticeWithBeat,
   onStartPractice,
   onStopPractice,
   onClearPracticeHistory,
@@ -807,6 +811,14 @@ export function PracticePanel({
                 Start routine
               </button>
             )}
+            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "var(--color-text-secondary)", cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                checked={practiceWithBeat}
+                onChange={onTogglePracticeWithBeat}
+              />
+              Groove pendant la pratique
+            </label>
             <button
               onClick={() => setFocusMode((value) => !value)}
               style={{

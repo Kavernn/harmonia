@@ -177,6 +177,9 @@ interface ProgressionJamPanelProps {
   onToggleTabGuide: () => void;
   onTogglePhraseGuide: () => void;
   onTogglePhraseCue: () => void;
+  onSaveProgression: (name: string) => void;
+  onDeleteSavedProgression: (name: string) => void;
+  userSavedProgressionNames: string[];
 }
 
 export function ProgressionJamPanel({
@@ -242,6 +245,9 @@ export function ProgressionJamPanel({
   onToggleTabGuide,
   onTogglePhraseGuide,
   onTogglePhraseCue,
+  onSaveProgression,
+  onDeleteSavedProgression,
+  userSavedProgressionNames,
 }: ProgressionJamPanelProps) {
   const [showTransportDetails, setShowTransportDetails] = usePersistentState("harmonia.transport-details", false);
   const [showTheoryDetails, setShowTheoryDetails] = usePersistentState("harmonia.theory-details", false);
@@ -345,24 +351,72 @@ export function ProgressionJamPanel({
           {namedProgs.map((progressionOption, index) => {
             const active = JSON.stringify(activeSteps) === JSON.stringify(progressionOption.steps);
             return (
-              <button key={index} onClick={() => onSelectNamedProgression(progressionOption.steps)} style={{
-                border: active ? "1.5px solid var(--color-accent-primary)" : "0.5px solid var(--color-border-tertiary)",
-                background: active ? "var(--color-accent-soft)" : "var(--color-background-primary)",
-                borderRadius: "var(--border-radius-md)",
-                padding: "7px 12px",
-                cursor: "pointer",
-                textAlign: "left",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}>
-                <span style={{ fontSize: 12, fontWeight: 500, color: active ? "var(--color-accent-strong)" : "var(--color-text-primary)" }}>
-                  {progressionOption.name}
-                </span>
-                <span style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{progressionOption.feel}</span>
-              </button>
+              <div key={index} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <button onClick={() => onSelectNamedProgression(progressionOption.steps)} style={{
+                  flex: 1,
+                  border: active ? "1.5px solid var(--color-accent-primary)" : "0.5px solid var(--color-border-tertiary)",
+                  background: active ? "var(--color-accent-soft)" : "var(--color-background-primary)",
+                  borderRadius: "var(--border-radius-md)",
+                  padding: "7px 12px",
+                  cursor: "pointer",
+                  textAlign: "left",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}>
+                  <span style={{ fontSize: 12, fontWeight: 500, color: active ? "var(--color-accent-strong)" : "var(--color-text-primary)" }}>
+                    {progressionOption.name}
+                  </span>
+                  <span style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>{progressionOption.feel}</span>
+                </button>
+                {userSavedProgressionNames.includes(progressionOption.name) && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onDeleteSavedProgression(progressionOption.name); }}
+                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-tertiary)", fontSize: 10, padding: "0 2px" }}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
             );
           })}
+          {activeSteps.length > 0 && (
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
+              <input
+                type="text"
+                placeholder="Nom du preset..."
+                id="prog-save-name"
+                style={{
+                  border: "0.5px solid var(--color-border-tertiary)",
+                  borderRadius: "var(--border-radius-md)",
+                  padding: "6px 10px",
+                  fontSize: 11,
+                  background: "var(--color-background-secondary)",
+                  color: "var(--color-text-primary)",
+                  flex: 1,
+                }}
+              />
+              <button
+                onClick={() => {
+                  const input = document.getElementById("prog-save-name") as HTMLInputElement;
+                  const name = input?.value.trim();
+                  if (name) { onSaveProgression(name); input.value = ""; }
+                }}
+                style={{
+                  border: "0.5px solid var(--color-border-tertiary)",
+                  background: "var(--color-background-primary)",
+                  color: "var(--color-text-secondary)",
+                  borderRadius: "var(--border-radius-md)",
+                  padding: "6px 10px",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Sauvegarder
+              </button>
+            </div>
+          )}
         </div>
       )}
 

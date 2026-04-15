@@ -65,6 +65,23 @@ export function FretboardMasteryPanel({
   const [positionStart, setPositionStart] = useState<number | null>(null);
   const [autoRotate, setAutoRotate] = useState(false);
   const [rotateSeconds, setRotateSeconds] = useState(12);
+  const [rotateProgress, setRotateProgress] = useState(0);
+
+  useEffect(() => {
+    if (!autoRotate) {
+      setRotateProgress(0);
+      return;
+    }
+    setRotateProgress(0);
+    const totalMs = Math.max(4, rotateSeconds) * 1000;
+    const intervalMs = 100;
+    const startTime = Date.now();
+    const ticker = window.setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      setRotateProgress(Math.min(100, (elapsed / totalMs) * 100));
+    }, intervalMs);
+    return () => window.clearInterval(ticker);
+  }, [autoRotate, rotateSeconds, positionStart]);
   const stringCount = selectedTuningStrings.length;
   const naturalPositions = useMemo(
     () => buildNaturalPositions(scalePositions, stringCount, windowSize, notesPerString),
@@ -193,6 +210,17 @@ export function FretboardMasteryPanel({
             />
             Auto rotate positions
           </label>
+          {autoRotate && (
+            <div style={{ flex: 1, height: 3, background: "var(--color-background-primary)", borderRadius: 2, overflow: "hidden", minWidth: 60 }}>
+              <div style={{
+                height: "100%",
+                width: `${rotateProgress}%`,
+                background: "var(--color-accent-primary)",
+                borderRadius: 2,
+                transition: "width 0.1s linear",
+              }} />
+            </div>
+          )}
           <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
             {naturalPositions.length ? `Positions: ${naturalPositions.length} · active ${effectiveStart}-${effectiveStart + windowSize}` : "Aucune position détectée"}
           </div>
@@ -230,6 +258,20 @@ export function FretboardMasteryPanel({
           showPhraseGuide={false}
           stringLabels={selectedTuningStrings}
         />
+        <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 10, padding: "8px 4px" }}>
+          {([
+            { color: "rgba(31, 202, 211, 0.9)", label: "Tonique" },
+            { color: "rgba(31, 202, 211, 0.55)", label: "Notes de gamme" },
+            { color: "rgba(255, 160, 50, 0.8)", label: "Caractéristiques modales" },
+            { color: "rgba(255, 80, 80, 0.6)", label: "Notes à éviter" },
+            { color: "rgba(150, 120, 255, 0.8)", label: "Notes de résolution" },
+          ] as const).map(({ color, label }) => (
+            <div key={label} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 10, color: "var(--color-text-tertiary)" }}>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: color, flexShrink: 0 }} />
+              {label}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

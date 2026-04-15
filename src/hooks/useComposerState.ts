@@ -42,6 +42,7 @@ export function useComposerState() {
   const [activeStep, setActiveStep] = useState(0);
   const [playPhraseCue, setPlayPhraseCue] = usePersistentState("harmonia.play-phrase-cue", false);
   const [practiceCueEnabled, setPracticeCueEnabled] = usePersistentState("harmonia.practice.cue-enabled", true);
+  const [practiceWithBeat, setPracticeWithBeat] = usePersistentState("harmonia.practice-with-beat", false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const lastPhraseCueRef = useRef("");
 
@@ -80,6 +81,8 @@ export function useComposerState() {
     setSelectedScale,
     setSoloPalette,
     setActiveSteps,
+    saveProgressionAsPreset,
+    deleteSavedProgression,
   } = scaleAnalysis;
 
   const practicePlanner = usePracticePlanner({
@@ -764,6 +767,7 @@ export function useComposerState() {
       bestCleanBpm: Math.max(0, ...practiceEngine.sessionHistory.map((s) => s.best_clean_bpm ?? 0)) || null,
       streakClean: practiceEngine.consecutiveCleanReps,
       sessionHistory: practiceEngine.sessionHistory,
+      selectedScaleLabel: selectedScale ? `${selectedScale.scale_root} ${selectedScale.scale_name}` : null,
       onOpenPractice: () => setMainView("practice"),
       onOpenFretboard: () => setMainView("fretboard"),
       onOpenRiff: () => setMainView("riff"),
@@ -840,11 +844,17 @@ export function useComposerState() {
       onReplayCue: practiceEngine.replayCue,
       onNudgeBpm: practiceEngine.nudgeBpm,
       onSetSoloPalette: setSoloPalette,
+      practiceWithBeat,
+      onTogglePracticeWithBeat: () => setPracticeWithBeat((v) => !v),
       onStartPractice: () => {
         stopJam();
+        if (practiceWithBeat) startBeatPlayback();
         void practiceEngine.startPractice();
       },
-      onStopPractice: practiceEngine.stopPractice,
+      onStopPractice: () => {
+        stopBeatPlayback();
+        practiceEngine.stopPractice();
+      },
       onClearPracticeHistory: practiceEngine.clearSessionHistory,
     },
     progressionJamProps: selectedScale ? {
@@ -891,6 +901,9 @@ export function useComposerState() {
         prev.includes(step) ? prev.filter((item) => item !== step) : [...prev, step]
       ),
       onClearSteps: () => setActiveSteps([]),
+      onSaveProgression: saveProgressionAsPreset,
+      onDeleteSavedProgression: deleteSavedProgression,
+      userSavedProgressionNames: scaleAnalysis.userSavedProgressionNames ?? [],
       onSelectStep: (index: number) => {
         stopJam();
         handleActiveStepChange(index);

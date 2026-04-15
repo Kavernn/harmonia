@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { FretPosition, ScaleSuggestion } from "../music";
 import { usePersistentState } from "../hooks/usePersistentState";
+import { Fretboard } from "./Fretboard";
 
 interface RiffStep {
   stringIndex: number;
@@ -73,6 +74,7 @@ export function RiffLabPanel({
     "harmonia.riff-locked-steps",
     {}
   );
+  const [midiExportedToast, setMidiExportedToast] = useState(false);
   const activeSection = sections.find((section) => section.id === activeSectionId) ?? sections[0];
   const bars = activeSection?.bars ?? 2;
   const notesPerBar = activeSection?.notesPerBar ?? 8;
@@ -321,7 +323,11 @@ export function RiffLabPanel({
             Export riff (txt)
           </button>
           <button
-            onClick={() => onExportRiffMidi(riffSteps, tempoBpm)}
+            onClick={() => {
+              onExportRiffMidi(riffSteps, tempoBpm);
+              setMidiExportedToast(true);
+              setTimeout(() => setMidiExportedToast(false), 2000);
+            }}
             style={{
               border: "0.5px solid var(--color-border-tertiary)",
               background: "var(--color-background-primary)",
@@ -335,6 +341,11 @@ export function RiffLabPanel({
           >
             Export MIDI
           </button>
+          {midiExportedToast && (
+            <div style={{ fontSize: 11, color: "var(--color-accent-strong)", fontWeight: 600, alignSelf: "center" }}>
+              ✓ Téléchargé
+            </div>
+          )}
           {Object.keys(lockedSteps).length > 0 && (
             <button
               onClick={() => setLockedSteps({})}
@@ -528,6 +539,49 @@ export function RiffLabPanel({
             Clic sur un carré = locker/délocker ce step
           </div>
         </div>
+      </div>
+
+      <div style={{
+        marginTop: 12,
+        padding: 12,
+        border: "0.5px solid var(--color-border-tertiary)",
+        borderRadius: "var(--border-radius-lg)",
+        background: "var(--color-background-secondary)",
+      }}>
+        <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginBottom: 8 }}>
+          Positions sur le manche
+        </div>
+        {scalePositions.length > 0 ? (
+          <Fretboard
+            scalePositions={scalePositions}
+            chordTones={[]}
+            chordQuality=""
+            rootNote={selectedScale?.scale_root ?? harmonyRootName}
+            scaleRoot={selectedScale?.scale_root ?? harmonyRootName}
+            modalCharacteristicTones={[]}
+            modalAvoidTones={[]}
+            modalResolutionTones={[]}
+            nextChordName=""
+            colorTones={[]}
+            resolutionNote=""
+            currentPulseTotal={4}
+            tempoUnit="quarter"
+            phraseGuides={[]}
+            windowStart={positionStart ?? 0}
+            windowSize={windowSize}
+            showAvoid={includeAvoid}
+            flash={false}
+            displayPreset="focus"
+            labelMode="note"
+            showTabGuide={false}
+            showPhraseGuide={false}
+            stringLabels={tuningStrings}
+          />
+        ) : (
+          <div style={{ fontSize: 12, color: "var(--color-text-tertiary)" }}>
+            Sélectionne une gamme pour voir les positions
+          </div>
+        )}
       </div>
     </div>
   );
