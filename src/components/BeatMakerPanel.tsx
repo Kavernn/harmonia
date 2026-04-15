@@ -13,6 +13,7 @@ interface BeatMakerPanelProps {
   onBeatSwingChange: (value: number) => void;
   onResetBeatPattern: () => void;
   onCycleBeatStep: (voice: string, step: number) => void;
+  onPreviewVoice: (voice: string) => void;
   onStartBeat: () => void;
   onStopBeat: () => void;
 }
@@ -30,6 +31,7 @@ export function BeatMakerPanel({
   onBeatSwingChange,
   onResetBeatPattern,
   onCycleBeatStep,
+  onPreviewVoice,
   onStartBeat,
   onStopBeat,
 }: BeatMakerPanelProps) {
@@ -118,10 +120,11 @@ export function BeatMakerPanel({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: 10,
-                color: step % 4 === 0 ? "var(--color-text-secondary)" : "var(--color-text-tertiary)",
+                fontSize: step % 4 === 0 ? 11 : 9,
+                fontWeight: step % 4 === 0 ? 700 : 400,
+                color: step % 4 === 0 ? "var(--color-accent-strong)" : "var(--color-text-tertiary)",
               }}>
-                {step + 1}
+                {step % 4 === 0 ? String(step / 4 + 1) : "·"}
               </div>
             ))}
           </div>
@@ -134,7 +137,7 @@ export function BeatMakerPanel({
                 const velocityLabel = !event ? "empty" : event.velocity < 72 ? "soft" : event.velocity < 108 ? "normal" : "accent";
                 const accentAlpha = Math.max(0.2, (event?.velocity ?? 0) / 127);
                 return (
-                  <button key={step} type="button" onClick={() => onCycleBeatStep(voice, step)} title={`${voice} · step ${step + 1} · ${velocityLabel}${event ? ` · vel ${event.velocity}` : ""}`} style={{
+                  <button key={step} type="button" onClick={() => { onCycleBeatStep(voice, step); onPreviewVoice(voice); }} title={`${voice} · step ${step + 1} · ${velocityLabel}${event ? ` · vel ${event.velocity}` : ""}`} style={{
                     height: 18,
                     borderRadius: 4,
                     border: step % 4 === 0 ? "1px solid var(--color-accent-primary)" : "0.5px solid var(--color-border-tertiary)",

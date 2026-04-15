@@ -69,6 +69,10 @@ export function RiffLabPanel({
   const [accentPattern, setAccentPattern] = usePersistentState<"straight" | "gallop" | "syncopated">("harmonia.riff-accent-pattern", "straight");
   const [palmMute, setPalmMute] = usePersistentState("harmonia.riff-palm-mute", false);
   const [tempoBpm, setTempoBpm] = usePersistentState("harmonia.riff-tempo-bpm", 120);
+  const [lockedSteps, setLockedSteps] = usePersistentState<Record<number, { stringIndex: number; fret: number }>>(
+    "harmonia.riff-locked-steps",
+    {}
+  );
   const activeSection = sections.find((section) => section.id === activeSectionId) ?? sections[0];
   const bars = activeSection?.bars ?? 2;
   const notesPerBar = activeSection?.notesPerBar ?? 8;
@@ -91,11 +95,24 @@ export function RiffLabPanel({
     const rand = seededRandom(seedValue + totalSteps);
     const steps: RiffStep[] = [];
     for (let i = 0; i < totalSteps; i += 1) {
-      const pick = usablePositions[Math.floor(rand() * usablePositions.length)];
-      steps.push({ stringIndex: pick.string, fret: pick.fret });
+      const randomPick = usablePositions[Math.floor(rand() * usablePositions.length)];
+      const locked = lockedSteps[i];
+      steps.push(locked ?? { stringIndex: randomPick.string, fret: randomPick.fret });
     }
     return steps;
-  }, [seed, totalSteps, usablePositions]);
+  }, [seed, totalSteps, usablePositions, lockedSteps]);
+
+  function toggleLockStep(index: number) {
+    setLockedSteps((prev) => {
+      if (prev[index]) {
+        const { [index]: _, ...rest } = prev;
+        return rest;
+      }
+      const step = riffSteps[index];
+      if (!step) return prev;
+      return { ...prev, [index]: step };
+    });
+  }
 
   const asciiTab = useMemo(() => buildAsciiTab(riffSteps, tuningStrings, totalSteps), [riffSteps, tuningStrings, totalSteps]);
   const accentLine = useMemo(() => {
@@ -213,7 +230,7 @@ export function RiffLabPanel({
               />
             </label>
             <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 11, color: "var(--color-text-tertiary)" }}>
-              Seed
+              Variation
               <input
                 type="text"
                 value={activeSection.seed}
@@ -318,6 +335,23 @@ export function RiffLabPanel({
           >
             Export MIDI
           </button>
+          {Object.keys(lockedSteps).length > 0 && (
+            <button
+              onClick={() => setLockedSteps({})}
+              style={{
+                border: "0.5px solid var(--color-accent-primary)",
+                background: "var(--color-accent-soft)",
+                color: "var(--color-accent-strong)",
+                borderRadius: "var(--border-radius-md)",
+                padding: "6px 10px",
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Clear locks ({Object.keys(lockedSteps).length})
+            </button>
+          )}
         </div>
       </div>
 
@@ -396,7 +430,7 @@ export function RiffLabPanel({
               const value = event.target.value;
               setSections((prev) => prev.map((section) => section.id === activeSectionId ? { ...section, seed: value } : section));
             }}
-            placeholder="Seed"
+            placeholder="Variation"
             style={{
               border: "0.5px solid var(--color-border-tertiary)",
               borderRadius: "var(--border-radius-md)",
@@ -404,6 +438,26 @@ export function RiffLabPanel({
               fontSize: 11,
             }}
           />
+          <button
+            onClick={() => {
+              const newSeed = Math.random().toString(36).slice(2, 8);
+              setSections((prev) => prev.map((section) =>
+                section.id === activeSectionId ? { ...section, seed: newSeed } : section
+              ));
+            }}
+            style={{
+              border: "0.5px solid var(--color-border-tertiary)",
+              background: "var(--color-background-primary)",
+              color: "var(--color-text-secondary)",
+              borderRadius: "var(--border-radius-md)",
+              padding: "6px 10px",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Shuffle
+          </button>
           <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: "var(--color-text-secondary)" }}>
             <input
               type="checkbox"
@@ -444,9 +498,36 @@ export function RiffLabPanel({
         <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
           Tab preview
         </div>
-        <pre style={{ fontSize: 11, marginTop: 8, whiteSpace: "pre-wrap" }}>
-          {exportLines.join("\n")}
-        </pre>
+        <div style={{ overflowX: "auto" }}>
+          <pre style={{ fontSize: 11, marginTop: 8, whiteSpace: "pre", userSelect: "none" }}>
+            {exportLines.join("\n")}
+          </pre>
+          <div style={{ display: "flex", gap: 2, marginTop: 6 }}>
+            {riffSteps.map((_step, index) => {
+              const isLocked = Boolean(lockedSteps[index]);
+              return (
+                <button
+                  key={index}
+                  onClick={() => toggleLockStep(index)}
+                  title={isLocked ? `Step ${index + 1}: locker (clic pour délocker)` : `Step ${index + 1}: clic pour locker`}
+                  style={{
+                    flex: 1,
+                    minWidth: 14,
+                    height: 14,
+                    borderRadius: 2,
+                    border: isLocked ? "1.5px solid var(--color-accent-primary)" : "0.5px solid var(--color-border-tertiary)",
+                    background: isLocked ? "var(--color-accent-primary)" : "var(--color-background-primary)",
+                    cursor: "pointer",
+                    padding: 0,
+                  }}
+                />
+              );
+            })}
+          </div>
+          <div style={{ fontSize: 10, color: "var(--color-text-tertiary)", marginTop: 4 }}>
+            Clic sur un carré = locker/délocker ce step
+          </div>
+        </div>
       </div>
     </div>
   );

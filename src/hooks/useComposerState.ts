@@ -801,6 +801,10 @@ export function useComposerState() {
       onBeatSwingChange: beatComposer.setBeatSwing,
       onResetBeatPattern: beatComposer.resetBeatPattern,
       onCycleBeatStep: beatComposer.cycleBeatStep,
+      onPreviewVoice: (voice: string) => {
+        void audio.unlockAudio();
+        audio.playBeatStep([{ voice, step: 0, velocity: beatComposer.beatIntensity }], 0, 100, 0);
+      },
       onStartBeat: startBeatPlayback,
       onStopBeat: stopBeatPlayback,
     } : null,

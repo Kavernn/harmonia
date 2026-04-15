@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { BeatMakerPanel } from "./components/BeatMakerPanel";
 import { CommandPalette } from "./components/CommandPalette";
 import { ControlSidebar } from "./components/ControlSidebar";
@@ -10,6 +11,7 @@ import { ScaleSuggestionsPanel } from "./components/ScaleSuggestionsPanel";
 import { useComposerState } from "./hooks/useComposerState";
 
 export default function App() {
+  const [showShortcuts, setShowShortcuts] = useState(false);
   const {
     mainView,
     setMainView,
@@ -71,6 +73,18 @@ export default function App() {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <button onClick={() => setShowShortcuts(true)} style={{
+              border: "0.5px solid var(--color-border-tertiary)",
+              background: "var(--color-background-primary)",
+              color: "var(--color-text-tertiary)",
+              borderRadius: "var(--border-radius-md)",
+              padding: "7px 10px",
+              fontSize: 11,
+              cursor: "pointer",
+              fontWeight: 500,
+            }}>
+              ?
+            </button>
             <button onClick={() => setCommandPaletteOpen(true)} style={{
               border: "0.5px solid var(--color-border-tertiary)",
               background: "var(--color-background-primary)",
@@ -103,6 +117,85 @@ export default function App() {
           actions={commandActions}
           onClose={() => setCommandPaletteOpen(false)}
         />
+      )}
+
+      {showShortcuts && (
+        <div
+          onClick={() => setShowShortcuts(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 50,
+            background: "rgba(0,0,0,0.6)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "var(--color-background-primary)",
+              border: "0.5px solid var(--color-border-tertiary)",
+              borderRadius: "var(--border-radius-lg)",
+              padding: 24,
+              minWidth: 360,
+              maxWidth: 480,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-primary)" }}>Raccourcis clavier</div>
+              <button onClick={() => setShowShortcuts(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-text-tertiary)", fontSize: 16 }}>✕</button>
+            </div>
+            {([
+              { group: "Navigation", items: [
+                ["D", "Dashboard"],
+                ["J", "Jam"],
+                ["W", "Practice"],
+                ["S", "Palettes"],
+                ["B", "Beat"],
+                ["R", "Riff"],
+                ["M", "Fretboard"],
+                ["[", "Toggle sidebar"],
+              ]},
+              { group: "Transport", items: [
+                ["Space", "Play / Stop"],
+                ["← / →", "Accord précédent / suivant"],
+                ["+ / -", "BPM +1 / -1"],
+              ]},
+              { group: "Fretboard", items: [
+                ["1 / 2 / 3", "Labels: fonctions / degrés / notes"],
+                ["T", "Tab guide"],
+                ["P", "Phrase guide"],
+                ["F", "Follow chord"],
+              ]},
+              { group: "Général", items: [
+                ["⌘K ou /", "Palette de commandes"],
+                ["Esc", "Fermer"],
+                ["?", "Cette aide"],
+              ]},
+            ] as const).map(({ group, items }) => (
+              <div key={group}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "var(--color-text-tertiary)", textTransform: "uppercase", marginBottom: 6 }}>{group}</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  {items.map(([key, label]) => (
+                    <div key={key} style={{ display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+                      <span style={{ color: "var(--color-text-secondary)" }}>{label}</span>
+                      <kbd style={{
+                        background: "var(--color-background-secondary)",
+                        border: "0.5px solid var(--color-border-tertiary)",
+                        borderRadius: 4,
+                        padding: "1px 6px",
+                        fontSize: 11,
+                        color: "var(--color-text-primary)",
+                        fontFamily: "monospace",
+                      }}>{key}</kbd>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   );

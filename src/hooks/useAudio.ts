@@ -235,6 +235,11 @@ export function useAudio(masterVolume: number, clickVolume: number, guitarVolume
     const arrayBuffer = await response.arrayBuffer();
     const buffer = await getCtx().decodeAudioData(arrayBuffer.slice(0));
     sampleCacheRef.current.set(noteName, buffer);
+    // LRU eviction — cap à 64 entrées
+    if (sampleCacheRef.current.size > 64) {
+      const oldest = sampleCacheRef.current.keys().next().value;
+      if (oldest !== undefined) sampleCacheRef.current.delete(oldest);
+    }
     return buffer;
   }
 

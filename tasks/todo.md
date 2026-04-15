@@ -25,25 +25,33 @@
 
 ## 🟠 HAUTE PRIORITÉ — UX bloquante
 
-- [ ] **RiffLab : génération purement aléatoire** : les notes sont choisies au hasard dans la gamme par un PRNG seedé. C'est une esquisse, pas de la composition. Ajouter : (1) lock de steps individuels (épingler une note et regénérer les autres), (2) mode chord-tone priority (forcer les temps forts sur les chord tones), (3) bouton "Shuffle" pour regénérer un seul step.
+- [x] **RiffLab : génération + lock steps** : bouton Shuffle (seed aléatoire), label "Variation" au lieu de "Seed", lock strip cliquable sous le tab (carré cyan = locké), PRNG reste cohérent même avec locks, bouton "Clear locks (N)". (2026-04-15)
 
 - [ ] **RiffLab : pas de fretboard visuel** : le tab preview est en ASCII texte. Ajouter le composant `<Fretboard>` en dessous du tab pour visualiser les notes du riff sur le manche (les frets utilisés en surbrillance).
 
 - [ ] **Dashboard : historique de pratique** : graphique BPM 7 sessions, total minutes, sessions totales — affiché. Reste à ajouter: miniature per-exercise breakdown. (partiellement fait 2026-04-15)
 
-- [ ] **BeatMaker : pas de preview sonore au clic de step** : quand on clique sur une case dans la grille, rien ne joue. Ajouter un `audio.playDrumVoice(voice)` immédiat au clic pour confirmer visuellement + auditivement.
+- [x] **BeatMaker : preview sonore au clic** : `onPreviewVoice(voice)` appelé à chaque clic de step via `audio.playBeatStep` single hit. (2026-04-15)
+
+- [x] **BeatMaker : labels temps forts** : beats 1/2/3/4 affichés en gras accent sur les downbeats (steps 0/4/8/12), "·" discret sur les off-beats. (2026-04-15)
+
+- [x] **Sample cache LRU** : éviction automatique dès que `sampleCacheRef` dépasse 64 entrées — suppression de l'entrée la plus ancienne. (2026-04-15)
+
+- [x] **Raccourcis clavier cheatsheet** : bouton `?` dans le header, modale overlay avec 4 groupes (Navigation, Transport, Fretboard, Général), kbd stylisés. (2026-04-15)
 
 - [ ] **Practice : pas de backing beat pendant l'exercice** : la Practice engine tourne seule sans la beat pattern. Ajouter une option "Jouer le groove pendant la pratique" qui active `useBeatComposer` en sync avec le tempo de practice.
 
 - [ ] **Progression Jam : impossible de sauvegarder une progression personnalisée** : on peut construire une progression custom mais elle n'est pas sauvegardable avec un nom. Ajouter un bouton "Sauvegarder comme preset" qui l'ajoute à `namedProgs` en localStorage.
 
-- [ ] **Sample cache non borné** : `sampleCacheRef` dans `useAudio` est un `Map` qui grandit indéfiniment. Sur une longue session avec accordages variés, ça va fuir. Limiter à 64 entrées (LRU) ou vider au changement d'accordage.
+- [ ] **Sample cache non borné** : ~~résolu~~ LRU déjà appliqué ci-dessus.
 
 ---
 
 ## 🟡 MOYENNE — Qualité & cohérence
 
 - [x] **Header navigation dupliqué** : supprimé le groupe "Workflow: Practice · Fretboard · Riff" redondant. Shortcut hint condensé en une ligne. (2026-04-15)
+
+- [x] **RiffLab : seed peu intuitive** : champ renommé "Variation", bouton "Shuffle" pour randomiser. (2026-04-15)
 
 - [ ] **Raccourcis clavier non discoverables** : le texte des shortcuts est sur une seule ligne compressée en haut à droite (`⌘K · Space · D · W · R...`). Personne ne le lit. Remplacer par un bouton `?` qui ouvre une modale de cheatsheet.
 
