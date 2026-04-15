@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { noteValue, type FretPosition, type ProgressionChord, type ScaleSuggestion } from "../music";
 import type { PracticePlan, PracticeRepScore, PracticeTarget } from "../practice";
 import type { PracticePhase } from "../hooks/usePracticeEngine";
@@ -227,6 +227,17 @@ export function PracticeLivePanel({
   onStopPractice,
 }: PracticeLivePanelProps) {
   const [tabPositionOverride, setTabPositionOverride] = useState<number | null>(null);
+  const prevPhaseRef = useRef<PracticePhase>("idle");
+  const phaseRunningStartRef = useRef<number>(0);
+
+  // Track when the "running" phase starts so we can compute tab position from elapsed time.
+  // This must be inline (not in useEffect) to capture the exact render where phase changes.
+  if (phase !== prevPhaseRef.current) {
+    if (phase === "running") {
+      phaseRunningStartRef.current = performance.now();
+    }
+    prevPhaseRef.current = phase;
+  }
 
   // Reset position override when scale changes
   useEffect(() => {
@@ -360,11 +371,17 @@ export function PracticeLivePanel({
   ]);
   const scaleTabSteps = scaleTabData.steps;
   const scaleTabPicks = scaleTabData.picks;
-  // One note per chord step: the engine advances stepIndex at step boundaries (= beat boundaries).
-  // currentPulse (within-step tick) is ignored — it fires 4× per beat for quarter-note steps
-  // and would make the tab scroll 4× too fast.
-  const tabActiveIndex = phase === "running" && scaleTabSteps.length > 0 && scaleWorkoutActive
-    ? currentStepIndex % scaleTabSteps.length
+  // Time-based tab index: advances at note-duration intervals from when "running" started.
+  // Avoids dependency on currentStepIndex which is bounded by progression_steps.length (often
+  // only 4-6 chords from backend) and would cause the tab to loop back to E string prematurely.
+  const noteDurationMs = scaleWorkoutActive && currentPulseTotal > 0
+    ? pulseDurationMs * currentPulseTotal
+    : pulseDurationMs;
+  const elapsedSinceRunning = phase === "running"
+    ? Math.max(0, performance.now() - phaseRunningStartRef.current)
+    : 0;
+  const tabActiveIndex = phase === "running" && scaleTabSteps.length > 0 && scaleWorkoutActive && noteDurationMs > 0
+    ? Math.floor(elapsedSinceRunning / noteDurationMs) % scaleTabSteps.length
     : -1;
   const barLength = 4;
   const npsValue = plan?.scale_run_notes_per_string ?? 3;
@@ -645,7 +662,7 @@ export function PracticeLivePanel({
         picks={scaleTabPicks as string[]}
         tuningStrings={tuningStrings}
         activeIndex={tabActiveIndex}
-        pulseDurationMs={scaleWorkoutActive && currentPulseTotal > 0 ? pulseDurationMs * currentPulseTotal : pulseDurationMs}
+        pulseDurationMs={noteDurationMs}
         bpm={displayedBpm}
         notesPerBar={notesPerBar}
         isPlaying={isPlaying}
