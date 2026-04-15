@@ -572,13 +572,13 @@ export function PracticePanel({
   useEffect(() => {
     if (!tabOnlyLiveView) return;
     if (document.fullscreenElement) return;
-    document.documentElement.requestFullscreen().catch(() => {});
+    document.documentElement.requestFullscreen?.().catch(() => {});
   }, [tabOnlyLiveView]);
 
   useEffect(() => {
     if (tabOnlyLiveView) return;
     if (!document.fullscreenElement) return;
-    document.exitFullscreen().catch(() => {});
+    document.exitFullscreen?.().catch(() => {});
   }, [tabOnlyLiveView]);
 
   useEffect(() => {
