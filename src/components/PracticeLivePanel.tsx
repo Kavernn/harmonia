@@ -360,13 +360,11 @@ export function PracticeLivePanel({
   ]);
   const scaleTabSteps = scaleTabData.steps;
   const scaleTabPicks = scaleTabData.picks;
-  // Global pulse within the current cycle: advances across both step index and pulse index
-  // currentPulse alone resets at each chord step — we need the cumulative count
-  const globalPulseInCycle = currentPulseTotal > 0
-    ? currentStepIndex * currentPulseTotal + currentPulse
-    : currentStepIndex;
-  const tabActiveIndex = phase === "running" && scaleTabSteps.length > 0
-    ? globalPulseInCycle % scaleTabSteps.length
+  // One note per chord step: the engine advances stepIndex at step boundaries (= beat boundaries).
+  // currentPulse (within-step tick) is ignored — it fires 4× per beat for quarter-note steps
+  // and would make the tab scroll 4× too fast.
+  const tabActiveIndex = phase === "running" && scaleTabSteps.length > 0 && scaleWorkoutActive
+    ? currentStepIndex % scaleTabSteps.length
     : -1;
   const barLength = 4;
   const npsValue = plan?.scale_run_notes_per_string ?? 3;
@@ -647,7 +645,7 @@ export function PracticeLivePanel({
         picks={scaleTabPicks as string[]}
         tuningStrings={tuningStrings}
         activeIndex={tabActiveIndex}
-        pulseDurationMs={pulseDurationMs}
+        pulseDurationMs={scaleWorkoutActive && currentPulseTotal > 0 ? pulseDurationMs * currentPulseTotal : pulseDurationMs}
         bpm={displayedBpm}
         notesPerBar={notesPerBar}
         isPlaying={isPlaying}
