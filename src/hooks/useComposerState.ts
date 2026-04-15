@@ -489,6 +489,9 @@ export function useComposerState() {
 
   // ── Riff playback ────────────────────────────────────────────────────────
   const [isRiffPlaying, setIsRiffPlaying] = useState(false);
+  const [riffPlayStartTime, setRiffPlayStartTime] = useState<number | null>(null);
+  const [riffPlayBpm, setRiffPlayBpm] = useState<number>(120);
+  const [riffPlayNotesPerBar, setRiffPlayNotesPerBar] = useState<number>(4);
   const riffIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const riffStepRef = useRef(0);
 
@@ -504,6 +507,9 @@ export function useComposerState() {
     const stepMs = (60 * 4) / (bpm * notesPerBar) * 1000;
     riffStepRef.current = 0;
     setIsRiffPlaying(true);
+    setRiffPlayStartTime(Date.now());
+    setRiffPlayBpm(bpm);
+    setRiffPlayNotesPerBar(notesPerBar);
 
     void audio.unlockAudio();
 
@@ -527,6 +533,7 @@ export function useComposerState() {
       riffIntervalRef.current = null;
     }
     setIsRiffPlaying(false);
+    setRiffPlayStartTime(null);
   }
 
   const commandActions: CommandAction[] = [
@@ -787,6 +794,9 @@ export function useComposerState() {
       tuningStrings: selectedTuning.strings,
       scalePositions,
       isRiffPlaying,
+      riffPlayStartTime,
+      riffPlayBpm,
+      riffPlayNotesPerBar,
       onExportRiff: exportRiff,
       onExportRiffMidi: exportRiffMidi,
       onPlayRiff: startRiffPlayback,

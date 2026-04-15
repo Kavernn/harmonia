@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { FretPosition, ScaleSuggestion } from "../music";
 import { usePersistentState } from "../hooks/usePersistentState";
 import { Fretboard } from "./Fretboard";
+import { ScrollingTabView } from "./ScrollingTabView";
 
 interface RiffStep {
   stringIndex: number;
@@ -15,6 +16,9 @@ interface RiffLabPanelProps {
   tuningStrings: string[];
   scalePositions: FretPosition[];
   isRiffPlaying: boolean;
+  riffPlayStartTime: number | null;
+  riffPlayBpm: number;
+  riffPlayNotesPerBar: number;
   onExportRiff: (lines: string[]) => void;
   onExportRiffMidi: (steps: RiffStep[], tempo: number) => void;
   onPlayRiff: (steps: RiffStep[], bpm: number, notesPerBar: number) => void;
@@ -48,6 +52,9 @@ export function RiffLabPanel({
   tuningStrings,
   scalePositions,
   isRiffPlaying,
+  riffPlayStartTime,
+  riffPlayBpm,
+  riffPlayNotesPerBar,
   onExportRiff,
   onExportRiffMidi,
   onPlayRiff,
@@ -75,6 +82,7 @@ export function RiffLabPanel({
     {}
   );
   const [midiExportedToast, setMidiExportedToast] = useState(false);
+  const [showTabView, setShowTabView] = usePersistentState("harmonia.riff-show-tab-view", true);
   const activeSection = sections.find((section) => section.id === activeSectionId) ?? sections[0];
   const bars = activeSection?.bars ?? 2;
   const notesPerBar = activeSection?.notesPerBar ?? 8;
@@ -506,9 +514,37 @@ export function RiffLabPanel({
         borderRadius: "var(--border-radius-lg)",
         background: "var(--color-background-secondary)",
       }}>
-        <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
-          Tab preview
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>
+            Tab preview
+          </div>
+          <button
+            onClick={() => setShowTabView((v) => !v)}
+            style={{
+              border: showTabView ? "1.5px solid var(--color-accent-primary)" : "0.5px solid var(--color-border-tertiary)",
+              background: showTabView ? "var(--color-accent-primary)" : "var(--color-background-primary)",
+              color: showTabView ? "var(--color-accent-contrast)" : "var(--color-text-tertiary)",
+              borderRadius: "var(--border-radius-md)",
+              padding: "4px 8px",
+              fontSize: 10,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            {showTabView ? "Scrolling tab ON" : "Scrolling tab OFF"}
+          </button>
         </div>
+        {showTabView && (
+          <div style={{ marginTop: 10 }}>
+            <ScrollingTabView
+              steps={riffSteps}
+              tuningStrings={tuningStrings}
+              bpm={riffPlayBpm}
+              notesPerBar={riffPlayNotesPerBar}
+              playStartTime={riffPlayStartTime}
+            />
+          </div>
+        )}
         <div style={{ overflowX: "auto" }}>
           <pre style={{ fontSize: 11, marginTop: 8, whiteSpace: "pre", userSelect: "none" }}>
             {exportLines.join("\n")}
