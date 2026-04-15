@@ -371,6 +371,17 @@ export function PracticeLivePanel({
   ]);
   const scaleTabSteps = scaleTabData.steps;
   const scaleTabPicks = scaleTabData.picks;
+  const barLength = 4;
+  const npsValue = plan?.scale_run_notes_per_string ?? 3;
+  // For bar grouping: use actual strings × npsValue when in exercise, otherwise group by tuning string count
+  const notesPerBar = scaleWorkoutActive
+    ? Math.max(1, barLength * npsValue)
+    : Math.max(1, tuningStrings.length); // one "bar" = one full string traversal
+  const notesPerMinute = scaleWorkoutActive
+    ? Math.round(displayedBpm * tempoPulseMultiplier(plan?.tempo_unit))
+    : null;
+  // Engine fires at sixteenth-note resolution: pulseDurationMs = (60000/bpm) / multiplier
+  const pulseDurationMs = (60_000 / Math.max(1, displayedBpm || 1)) / Math.max(1, tempoPulseMultiplier(plan?.tempo_unit ?? "quarter"));
   // Time-based tab index: advances at note-duration intervals from when "running" started.
   // Avoids dependency on currentStepIndex which is bounded by progression_steps.length (often
   // only 4-6 chords from backend) and would cause the tab to loop back to E string prematurely.
@@ -383,17 +394,6 @@ export function PracticeLivePanel({
   const tabActiveIndex = phase === "running" && scaleTabSteps.length > 0 && scaleWorkoutActive && noteDurationMs > 0
     ? Math.floor(elapsedSinceRunning / noteDurationMs) % scaleTabSteps.length
     : -1;
-  const barLength = 4;
-  const npsValue = plan?.scale_run_notes_per_string ?? 3;
-  // For bar grouping: use actual strings × npsValue when in exercise, otherwise group by tuning string count
-  const notesPerBar = scaleWorkoutActive
-    ? Math.max(1, barLength * npsValue)
-    : Math.max(1, tuningStrings.length); // one "bar" = one full string traversal
-  const notesPerMinute = scaleWorkoutActive
-    ? Math.round(displayedBpm * tempoPulseMultiplier(plan?.tempo_unit))
-    : null;
-  // Engine fires at sixteenth-note resolution: pulseDurationMs = (60000/bpm) / multiplier
-  const pulseDurationMs = (60_000 / Math.max(1, displayedBpm || 1)) / Math.max(1, tempoPulseMultiplier(plan?.tempo_unit ?? "quarter"));
   const scalePositionLabel = scaleWorkoutActive && plan
     ? `Position ${scalePositionIndex ?? "—"}/${scalePositionCount ?? "—"} · frets ${effectiveTabStart}-${effectiveTabStart + practiceWindowSize}`
     : null;
