@@ -1,73 +1,133 @@
-# React + TypeScript + Vite
+# Harmonia
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Application desktop de référence pour la production musicale et l'entraînement guitare.
 
-Currently, two official plugins are available:
+Construite avec **Tauri 2** (Rust) + **React 19** (TypeScript).
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## Fonctionnalités
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Jam
+Improvise sur des progressions harmoniques en temps réel.
+- Constructeur de progressions diatoniques, empruntées et secondaires
+- Analyse harmonique automatique (scales compatibles, guidance modale)
+- Strum avec guitare acoustique (soundfont) ou synth pad
+- Click track, métronome visuel, tap tempo
+- Visualisation du manche en temps réel
 
-## Expanding the ESLint configuration
+### Practice
+Entraînement structuré avec ramp de BPM et scoring.
+- 10+ exercices : guide tones, arpèges, runs de gammes, résolution modale…
+- BPM progressif (start → target, +N par rep propre)
+- Scoring temps réel : pitch, timing, cibles harmoniques, résolution
+- Input MIDI ou microphone
+- Tablature défilante canvas
+- Historique de session persistant
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Riff Lab
+Compositeur de riffs avec export MIDI.
+- Sections A/B/C indépendantes avec BPM propre
+- Randomisation PRNG avec seed contrôlable
+- Verrouillage de pas (lock steps)
+- Export MIDI et ASCII tab
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Beat Maker
+Groovebox 16 steps — 9 styles de groove.
+- Rock, Boom Bap, Four on the Floor, Trap, Half-Time, Funk, Shuffle, Latin, Jazz
+- Contrôle intensity + swing
+- Éditeur de pas indépendant par voix (6 voix)
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+### Fretboard Mastery
+Visualisation modale du manche.
+- Modes d'affichage : fonction, degré, nom de note
+- Highlighting : root, chord tone, color tone, avoid, characteristic, resolution
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Palettes
+Suggestions de scales pour improviser sur une grille.
+- Analyse chord par chord ou sur toute la progression
+- Filtrage par confiance (high / medium / low)
+- Guidance modale détaillée
+
+---
+
+## Accords supportés
+
+| Qualité | Symbole | Intervalles |
+|---------|---------|-------------|
+| Major | C | R 3 5 |
+| Minor | Cm | R ♭3 5 |
+| Dominant 7 | C7 | R 3 5 ♭7 |
+| Major 7 | Cmaj7 | R 3 5 7 |
+| Minor 7 | Cm7 | R ♭3 5 ♭7 |
+| Minor 7♭5 | Cm7♭5 | R ♭3 ♭5 ♭7 |
+| Diminished 7 | Cdim7 | R ♭3 ♭5 ♭♭7 |
+| Diminished | Cdim | R ♭3 ♭5 |
+| Power | C5 | R 5 |
+| Sus2 | Csus2 | R 2 5 |
+| Sus4 | Csus4 | R 4 5 |
+| Minor/Major 7 | CmMaj7 | R ♭3 5 7 |
+
+---
+
+## Raccourcis clavier
+
+| Touche | Action |
+|--------|--------|
+| `D` | Dashboard |
+| `J` | Jam |
+| `W` | Practice |
+| `S` | Palettes |
+| `B` | Beat |
+| `R` | Riff |
+| `M` | Fretboard |
+| `Space` | Play / Stop |
+| `←` / `→` | Accord précédent / suivant |
+| `+` / `-` | BPM +1 / -1 |
+| `[` | Toggle sidebar |
+| `⌘K` ou `/` | Palette de commandes |
+| `?` | Aide raccourcis |
+
+---
+
+## Architecture
+
+```
+harmonia/
+├── music-engine/       # Moteur musical Rust pur (zéro dépendances externes)
+│   ├── src/core/       # Notes, intervalles, accordages
+│   ├── src/harmony/    # Accords (12 qualités), gammes, modes
+│   ├── src/analysis/   # Compatibilité scale↔accord, confidence
+│   ├── src/progression/# Progressions, diatonic, solo guidance modale
+│   ├── src/practice/   # Exercices, scoring, targets
+│   ├── src/rhythm/     # 9 styles de beat 16 steps
+│   └── src/riff/       # Positions sur le manche
+├── src-tauri/          # Bridge Tauri (Rust → TypeScript via invoke)
+└── src/                # Frontend React 19 + TypeScript
+    ├── components/     # Panels UI
+    ├── hooks/          # State, audio Web API, MIDI, transport, tap tempo
+    └── services/       # musicApi.ts (wrappeur invoke Tauri)
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+**Principe :** Toute la logique musicale vit dans `music-engine` (Rust). Le frontend ne fait que visualiser et interagir — aucune logique musicale côté TypeScript.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+---
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Dev
+
+```bash
+npm install
+npm run tauri dev
+```
+
+Tests Rust :
+
+```bash
+cargo test
+```
+
+Type check :
+
+```bash
+npx tsc --noEmit
 ```

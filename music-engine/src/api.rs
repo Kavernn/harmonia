@@ -8,7 +8,9 @@
 use crate::analysis::suggestion::{suggest_scales, suggest_scales_for_progression};
 use crate::core::notes::PitchClass;
 use crate::harmony::chord::{
-    diminished_chord, major_chord, minor_chord, power_chord, sus2_chord, sus4_chord,
+    diminished_chord, diminished7_chord, dominant7_chord, major7_chord, major_chord,
+    minor7_chord, minor7b5_chord, minor_chord, minor_major7_chord, power_chord, sus2_chord,
+    sus4_chord,
 };
 
 // --- Types re-exportés pour que le frontend n'ait pas à importer les sous-modules ---
@@ -64,6 +66,12 @@ pub enum ChordQuality {
     Diminished,
     Sus2,
     Sus4,
+    Dominant7,
+    Major7,
+    Minor7,
+    Minor7b5,
+    Diminished7,
+    MinorMajor7,
 }
 
 /// Crée un accord depuis une note root et une qualité
@@ -75,6 +83,12 @@ pub fn build_chord(root: Note, quality: ChordQuality) -> ChordType {
         ChordQuality::Diminished => diminished_chord(root),
         ChordQuality::Sus2 => sus2_chord(root),
         ChordQuality::Sus4 => sus4_chord(root),
+        ChordQuality::Dominant7 => dominant7_chord(root),
+        ChordQuality::Major7 => major7_chord(root),
+        ChordQuality::Minor7 => minor7_chord(root),
+        ChordQuality::Minor7b5 => minor7b5_chord(root),
+        ChordQuality::Diminished7 => diminished7_chord(root),
+        ChordQuality::MinorMajor7 => minor_major7_chord(root),
     }
 }
 
@@ -153,11 +167,42 @@ mod tests {
             ChordQuality::Diminished,
             ChordQuality::Sus2,
             ChordQuality::Sus4,
+            ChordQuality::Dominant7,
+            ChordQuality::Major7,
+            ChordQuality::Minor7,
+            ChordQuality::Minor7b5,
+            ChordQuality::Diminished7,
+            ChordQuality::MinorMajor7,
         ];
         for q in qualities {
             let chord = build_chord(root, q);
             let _ = analyze_chord_strict(&chord);
         }
+    }
+
+    #[test]
+    fn dominant7_chord_has_scale_suggestions() {
+        let c = note(0);
+        let chord = build_chord(c, ChordQuality::Dominant7);
+        // Dom7 contient une tension (♭7) — medium confidence pour avoir des résultats
+        let results = analyze_chord(&chord, ConfidenceLevel::Medium);
+        assert!(!results.is_empty(), "C7 should have scale suggestions at medium confidence");
+    }
+
+    #[test]
+    fn major7_chord_has_scale_suggestions() {
+        let c = note(0);
+        let chord = build_chord(c, ChordQuality::Major7);
+        let results = analyze_chord(&chord, ConfidenceLevel::Medium);
+        assert!(!results.is_empty(), "Cmaj7 should have scale suggestions");
+    }
+
+    #[test]
+    fn minor7_chord_has_scale_suggestions() {
+        let d = note(2);
+        let chord = build_chord(d, ChordQuality::Minor7);
+        let results = analyze_chord(&chord, ConfidenceLevel::Medium);
+        assert!(!results.is_empty(), "Dm7 should have scale suggestions");
     }
 
     #[test]

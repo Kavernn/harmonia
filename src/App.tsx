@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BeatMakerPanel } from "./components/BeatMakerPanel";
 import { CommandPalette } from "./components/CommandPalette";
 import { ControlSidebar } from "./components/ControlSidebar";
@@ -9,9 +9,16 @@ import { ProgressionJamPanel } from "./components/ProgressionJamPanel";
 import { RiffLabPanel } from "./components/RiffLabPanel";
 import { ScaleSuggestionsPanel } from "./components/ScaleSuggestionsPanel";
 import { useComposerState } from "./hooks/useComposerState";
+import { useTapTempo } from "./hooks/useTapTempo";
 
 export default function App() {
   const [showShortcuts, setShowShortcuts] = useState(false);
+  const [isLight, setIsLight] = useState(() => {
+    return document.documentElement.classList.contains("light");
+  });
+  const [metronomeFlash, setMetronomeFlash] = useState(false);
+  const prevBeatRef = useRef(-1);
+
   const {
     mainView,
     setMainView,
@@ -19,6 +26,9 @@ export default function App() {
     commandPaletteOpen,
     setCommandPaletteOpen,
     commandActions,
+    isPlaying,
+    currentBeat,
+    onBpmChange,
     sidebarProps,
     scaleSuggestionsProps,
     beatMakerProps,
@@ -28,6 +38,27 @@ export default function App() {
     riffLabProps,
     dashboardProps,
   } = useComposerState();
+
+  const { tap } = useTapTempo(onBpmChange);
+
+  // Apply theme to :root
+  useEffect(() => {
+    document.documentElement.classList.toggle("light", isLight);
+  }, [isLight]);
+
+  // Visual metronome — flash on each beat 1 (currentBeat === 0)
+  useEffect(() => {
+    if (!isPlaying) { prevBeatRef.current = -1; return; }
+    if (currentBeat === 0 && prevBeatRef.current !== 0) {
+      setMetronomeFlash(true);
+      const t = setTimeout(() => setMetronomeFlash(false), 120);
+      prevBeatRef.current = 0;
+      return () => clearTimeout(t);
+    }
+    if (currentBeat !== 0) {
+      prevBeatRef.current = currentBeat;
+    }
+  }, [currentBeat, isPlaying]);
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: `${sidebarCollapsed ? "76px" : "280px"} 1fr`, minHeight: "100vh", fontFamily: "var(--font-sans)", background: "transparent" }}>
@@ -43,9 +74,12 @@ export default function App() {
           alignItems: "center",
           gap: 16,
           padding: "10px 0 12px",
-          background: "rgba(12, 15, 19, 0.92)",
-          borderBottom: "0.5px solid var(--color-border-tertiary)",
+          background: isLight ? "rgba(245, 247, 251, 0.92)" : "rgba(12, 15, 19, 0.92)",
+          borderBottom: metronomeFlash
+            ? "1.5px solid var(--color-accent-primary)"
+            : "0.5px solid var(--color-border-tertiary)",
           backdropFilter: "blur(12px)",
+          transition: "border-color 80ms ease",
         }}>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {([
@@ -72,7 +106,40 @@ export default function App() {
             ))}
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "flex-end" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <button
+              onClick={tap}
+              title="Tap pour définir le BPM"
+              style={{
+                border: "0.5px solid var(--color-border-tertiary)",
+                background: "var(--color-background-primary)",
+                color: "var(--color-accent-primary)",
+                borderRadius: "var(--border-radius-md)",
+                padding: "7px 12px",
+                fontSize: 11,
+                cursor: "pointer",
+                fontWeight: 600,
+              }}
+            >
+              Tap
+            </button>
+            <button
+              onClick={() => setIsLight((v) => !v)}
+              title={isLight ? "Passer en mode sombre" : "Passer en mode clair"}
+              style={{
+                border: "0.5px solid var(--color-border-tertiary)",
+                background: "var(--color-background-primary)",
+                color: "var(--color-text-tertiary)",
+                borderRadius: "var(--border-radius-md)",
+                padding: "7px 10px",
+                fontSize: 13,
+                cursor: "pointer",
+                fontWeight: 500,
+                lineHeight: 1,
+              }}
+            >
+              {isLight ? "🌙" : "☀"}
+            </button>
             <button onClick={() => setShowShortcuts(true)} style={{
               border: "0.5px solid var(--color-border-tertiary)",
               background: "var(--color-background-primary)",
@@ -97,8 +164,8 @@ export default function App() {
             }}>
               Commandes
             </button>
-            <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", textAlign: "right" }}>
-              ⌘K commandes · Space play/stop · D·J·W·S·B·R·M vues · [ sidebar · ←/→ accord
+            <div style={{ fontSize: 10, color: "var(--color-text-tertiary)", textAlign: "right" }}>
+              ⌘K · Space · D·J·W·S·B·R·M · [ · ←/→
             </div>
           </div>
         </div>

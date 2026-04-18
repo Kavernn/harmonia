@@ -742,6 +742,9 @@ export function useComposerState() {
     commandPaletteOpen,
     setCommandPaletteOpen,
     commandActions,
+    isPlaying,
+    currentBeat,
+    onBpmChange: clampBpm,
     sidebarProps: {
       tuningPresets: TUNING_PRESETS,
       selectedTuningId,

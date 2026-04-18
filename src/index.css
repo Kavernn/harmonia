@@ -89,3 +89,58 @@ select,
 textarea {
   font-family: inherit;
 }
+
+/* Light mode */
+:root.light {
+  color-scheme: light;
+
+  --color-background-primary: #f5f7fb;
+  --color-background-secondary: #eaecf2;
+  --color-background-tertiary: #dde1ea;
+  --color-border-primary: #c8cdd8;
+  --color-border-secondary: #d4d8e2;
+  --color-border-tertiary: #bec4d0;
+  --color-text-primary: #0f1217;
+  --color-text-secondary: #3a4050;
+  --color-text-tertiary: #6b7280;
+
+  --color-accent-primary: #0a8f9a;
+  --color-accent-strong: #077680;
+  --color-accent-soft: rgba(10, 143, 154, 0.12);
+  --color-accent-contrast: #f5f7fb;
+  --color-success: #059669;
+  --color-success-soft: rgba(5, 150, 105, 0.12);
+  --color-warning: #d97706;
+  --color-warning-soft: rgba(217, 119, 6, 0.12);
+  --color-danger: #dc2626;
+  --color-danger-soft: rgba(220, 38, 38, 0.1);
+
+  --color-fretboard-frame: #d4d8e2;
+  --color-fretboard-neck-start: #e8ecf4;
+  --color-fretboard-neck-end: #dde1ea;
+  --color-fretboard-stripe: rgba(0, 0, 0, 0.03);
+  --color-fretboard-fret: #b0b8c8;
+  --color-fretboard-marker: #c0c8d6;
+  --color-fretboard-nut: #9aa4b8;
+  --color-fretboard-string: #5a6478;
+  --color-fretboard-string-label: #7d8a9c;
+  --color-fretboard-fret-label: #8a95a5;
+  --color-fretboard-root: #d97706;
+  --color-fretboard-color: #c2610a;
+  --color-fretboard-color-soft: rgba(194, 97, 10, 0.15);
+  --color-fretboard-avoid: #dc2626;
+  --color-fretboard-modal: #0a8f9a;
+  --color-fretboard-resolution: #2563eb;
+
+  --color-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+
+  background: var(--color-background-primary);
+  color: var(--color-text-secondary);
+}
+
+:root.light body {
+  background:
+    radial-gradient(1200px 820px at 12% -10%, rgba(10, 143, 154, 0.06), transparent 55%),
+    radial-gradient(980px 740px at 88% 6%, rgba(5, 150, 105, 0.05), transparent 60%),
+    var(--color-background-primary);
+}

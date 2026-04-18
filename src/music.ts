@@ -92,12 +92,18 @@ export interface BeatPattern {
 export const NOTES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 export const SHARPS = new Set(["C#","D#","F#","G#","A#"]);
 export const QUALITIES = [
-  { id: "major", label: "Major", intervals: "R 3 5" },
-  { id: "minor", label: "Minor", intervals: "R ♭3 5" },
-  { id: "power", label: "Power", intervals: "R 5" },
-  { id: "diminished", label: "Dim", intervals: "R ♭3 ♭5" },
-  { id: "sus2", label: "Sus2", intervals: "R 2 5" },
-  { id: "sus4", label: "Sus4", intervals: "R 4 5" },
+  { id: "major",       label: "Major",     intervals: "R 3 5" },
+  { id: "minor",       label: "Minor",     intervals: "R ♭3 5" },
+  { id: "dominant7",   label: "Dom7",      intervals: "R 3 5 ♭7" },
+  { id: "major7",      label: "Maj7",      intervals: "R 3 5 7" },
+  { id: "minor7",      label: "m7",        intervals: "R ♭3 5 ♭7" },
+  { id: "minor7b5",    label: "m7♭5",      intervals: "R ♭3 ♭5 ♭7" },
+  { id: "diminished7", label: "dim7",      intervals: "R ♭3 ♭5 ♭♭7" },
+  { id: "diminished",  label: "Dim",       intervals: "R ♭3 ♭5" },
+  { id: "power",       label: "Power",     intervals: "R 5" },
+  { id: "sus2",        label: "Sus2",      intervals: "R 2 5" },
+  { id: "sus4",        label: "Sus4",      intervals: "R 4 5" },
+  { id: "minor_major7",label: "mMaj7",     intervals: "R ♭3 5 7" },
 ] as const;
 export const HARMONY_SCALES = [
   { id: "Ionian", label: "Ionian", detail: "majeur stable / centre tonal clair" },

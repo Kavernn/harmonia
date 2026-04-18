@@ -262,6 +262,12 @@ fn parse_quality(s: &str) -> Result<ChordQuality, String> {
         "diminished" => Ok(ChordQuality::Diminished),
         "sus2" => Ok(ChordQuality::Sus2),
         "sus4" => Ok(ChordQuality::Sus4),
+        "dominant7" | "dom7" | "7" => Ok(ChordQuality::Dominant7),
+        "major7" | "maj7" => Ok(ChordQuality::Major7),
+        "minor7" | "m7" => Ok(ChordQuality::Minor7),
+        "minor7b5" | "m7b5" | "half_dim" => Ok(ChordQuality::Minor7b5),
+        "diminished7" | "dim7" => Ok(ChordQuality::Diminished7),
+        "minor_major7" | "mmaj7" | "mMaj7" => Ok(ChordQuality::MinorMajor7),
         other => Err(format!("Unknown chord quality: {}", other)),
     }
 }
@@ -290,6 +296,10 @@ fn parse_beat_style(s: &str) -> Result<BeatStyle, String> {
         "four_on_the_floor" => Ok(BeatStyle::FourOnTheFloor),
         "trap" => Ok(BeatStyle::Trap),
         "half_time" => Ok(BeatStyle::HalfTime),
+        "funk" => Ok(BeatStyle::Funk),
+        "shuffle" => Ok(BeatStyle::Shuffle),
+        "latin" => Ok(BeatStyle::Latin),
+        "jazz" => Ok(BeatStyle::Jazz),
         other => Err(format!("Unknown beat style: {}", other)),
     }
 }
@@ -301,6 +311,10 @@ fn beat_style_id(style: BeatStyle) -> String {
         BeatStyle::FourOnTheFloor => "four_on_the_floor",
         BeatStyle::Trap => "trap",
         BeatStyle::HalfTime => "half_time",
+        BeatStyle::Funk => "funk",
+        BeatStyle::Shuffle => "shuffle",
+        BeatStyle::Latin => "latin",
+        BeatStyle::Jazz => "jazz",
     }
     .to_string()
 }

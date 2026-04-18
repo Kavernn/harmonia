@@ -28,6 +28,10 @@ pub enum BeatStyle {
     FourOnTheFloor,
     Trap,
     HalfTime,
+    Funk,
+    Shuffle,
+    Latin,
+    Jazz,
 }
 
 impl BeatStyle {
@@ -38,6 +42,10 @@ impl BeatStyle {
             BeatStyle::FourOnTheFloor => "Four on the Floor",
             BeatStyle::Trap => "Trap",
             BeatStyle::HalfTime => "Half-Time",
+            BeatStyle::Funk => "Funk",
+            BeatStyle::Shuffle => "Shuffle",
+            BeatStyle::Latin => "Latin",
+            BeatStyle::Jazz => "Jazz",
         }
     }
 }
@@ -280,34 +288,120 @@ pub fn beat_pattern(style: BeatStyle, feel: BeatFeel) -> BeatPattern {
         }
         BeatStyle::HalfTime => {
             let mut events = vec![
-                StepEvent {
-                    step: 0,
-                    voice: DrumVoice::Kick,
-                    velocity: 120,
-                },
-                StepEvent {
-                    step: 6,
-                    voice: DrumVoice::Kick,
-                    velocity: 84,
-                },
-                StepEvent {
-                    step: 8,
-                    voice: DrumVoice::Snare,
-                    velocity: 122,
-                },
-                StepEvent {
-                    step: 11,
-                    voice: DrumVoice::Kick,
-                    velocity: 92,
-                },
-                StepEvent {
-                    step: 14,
-                    voice: DrumVoice::Perc,
-                    velocity: 70,
-                },
+                StepEvent { step: 0, voice: DrumVoice::Kick, velocity: 120 },
+                StepEvent { step: 6, voice: DrumVoice::Kick, velocity: 84 },
+                StepEvent { step: 8, voice: DrumVoice::Snare, velocity: 122 },
+                StepEvent { step: 11, voice: DrumVoice::Kick, velocity: 92 },
+                StepEvent { step: 14, voice: DrumVoice::Perc, velocity: 70 },
             ];
             events.extend(hats_every_eighth(76));
             with_feel("Half-Time Weight", style, events, feel)
+        }
+        BeatStyle::Funk => {
+            // Groove funk syncopé — kick sur les 1 et & du 3, snare sur 2 et 4
+            let events = vec![
+                StepEvent { step: 0, voice: DrumVoice::Kick, velocity: 120 },
+                StepEvent { step: 3, voice: DrumVoice::Kick, velocity: 78 },
+                StepEvent { step: 4, voice: DrumVoice::Snare, velocity: 110 },
+                StepEvent { step: 6, voice: DrumVoice::Kick, velocity: 68 },
+                StepEvent { step: 7, voice: DrumVoice::Kick, velocity: 88 },
+                StepEvent { step: 9, voice: DrumVoice::Clap, velocity: 84 },
+                StepEvent { step: 10, voice: DrumVoice::Kick, velocity: 72 },
+                StepEvent { step: 12, voice: DrumVoice::Snare, velocity: 112 },
+                StepEvent { step: 14, voice: DrumVoice::Kick, velocity: 76 },
+                // Hats 16th avec accentuation syncopée
+                StepEvent { step: 0, voice: DrumVoice::ClosedHat, velocity: 88 },
+                StepEvent { step: 1, voice: DrumVoice::ClosedHat, velocity: 52 },
+                StepEvent { step: 2, voice: DrumVoice::ClosedHat, velocity: 72 },
+                StepEvent { step: 3, voice: DrumVoice::ClosedHat, velocity: 48 },
+                StepEvent { step: 4, voice: DrumVoice::ClosedHat, velocity: 84 },
+                StepEvent { step: 5, voice: DrumVoice::ClosedHat, velocity: 50 },
+                StepEvent { step: 6, voice: DrumVoice::ClosedHat, velocity: 70 },
+                StepEvent { step: 7, voice: DrumVoice::OpenHat, velocity: 74 },
+                StepEvent { step: 8, voice: DrumVoice::ClosedHat, velocity: 88 },
+                StepEvent { step: 9, voice: DrumVoice::ClosedHat, velocity: 52 },
+                StepEvent { step: 10, voice: DrumVoice::ClosedHat, velocity: 70 },
+                StepEvent { step: 11, voice: DrumVoice::ClosedHat, velocity: 48 },
+                StepEvent { step: 12, voice: DrumVoice::ClosedHat, velocity: 84 },
+                StepEvent { step: 13, voice: DrumVoice::ClosedHat, velocity: 50 },
+                StepEvent { step: 14, voice: DrumVoice::ClosedHat, velocity: 72 },
+                StepEvent { step: 15, voice: DrumVoice::OpenHat, velocity: 68 },
+            ];
+            with_feel("Funk Pocket", style, events, feel)
+        }
+        BeatStyle::Shuffle => {
+            // Shuffle/blues — feel ternaire simulé avec vélocités
+            let mut events = vec![
+                StepEvent { step: 0, voice: DrumVoice::Kick, velocity: 118 },
+                StepEvent { step: 4, voice: DrumVoice::Snare, velocity: 114 },
+                StepEvent { step: 6, voice: DrumVoice::Kick, velocity: 76 },
+                StepEvent { step: 8, voice: DrumVoice::Kick, velocity: 108 },
+                StepEvent { step: 10, voice: DrumVoice::Kick, velocity: 68 },
+                StepEvent { step: 12, voice: DrumVoice::Snare, velocity: 116 },
+            ];
+            // Hats shuffle : accent sur les temps, silence sur les & pour simuler le ternaire
+            for step in [0u8, 2, 4, 6, 8, 10, 12, 14] {
+                events.push(StepEvent {
+                    step,
+                    voice: DrumVoice::ClosedHat,
+                    velocity: if step % 4 == 0 { 92 } else { 58 },
+                });
+            }
+            with_feel("Shuffle Blues", style, events, feel)
+        }
+        BeatStyle::Latin => {
+            // Groove Latin / bossa-nova
+            let events = vec![
+                StepEvent { step: 0, voice: DrumVoice::Kick, velocity: 112 },
+                StepEvent { step: 3, voice: DrumVoice::Kick, velocity: 72 },
+                StepEvent { step: 6, voice: DrumVoice::Kick, velocity: 88 },
+                StepEvent { step: 8, voice: DrumVoice::Snare, velocity: 90 },
+                StepEvent { step: 9, voice: DrumVoice::Kick, velocity: 68 },
+                StepEvent { step: 11, voice: DrumVoice::Kick, velocity: 78 },
+                StepEvent { step: 12, voice: DrumVoice::Snare, velocity: 86 },
+                StepEvent { step: 14, voice: DrumVoice::Kick, velocity: 74 },
+                // Clave rythmique sur Perc
+                StepEvent { step: 0, voice: DrumVoice::Perc, velocity: 96 },
+                StepEvent { step: 3, voice: DrumVoice::Perc, velocity: 80 },
+                StepEvent { step: 6, voice: DrumVoice::Perc, velocity: 88 },
+                StepEvent { step: 8, voice: DrumVoice::Perc, velocity: 94 },
+                StepEvent { step: 11, voice: DrumVoice::Perc, velocity: 78 },
+                // Hats légers sur les croches
+                StepEvent { step: 0, voice: DrumVoice::ClosedHat, velocity: 62 },
+                StepEvent { step: 2, voice: DrumVoice::ClosedHat, velocity: 50 },
+                StepEvent { step: 4, voice: DrumVoice::ClosedHat, velocity: 62 },
+                StepEvent { step: 6, voice: DrumVoice::ClosedHat, velocity: 50 },
+                StepEvent { step: 8, voice: DrumVoice::ClosedHat, velocity: 62 },
+                StepEvent { step: 10, voice: DrumVoice::ClosedHat, velocity: 50 },
+                StepEvent { step: 12, voice: DrumVoice::ClosedHat, velocity: 62 },
+                StepEvent { step: 14, voice: DrumVoice::ClosedHat, velocity: 50 },
+            ];
+            with_feel("Latin Groove", style, events, feel)
+        }
+        BeatStyle::Jazz => {
+            // Jazz ride pattern — ride sur les croches avec swing fort
+            let events = vec![
+                StepEvent { step: 0, voice: DrumVoice::Kick, velocity: 88 },
+                StepEvent { step: 8, voice: DrumVoice::Kick, velocity: 72 },
+                // Snare ghost notes (brush feel)
+                StepEvent { step: 4, voice: DrumVoice::Snare, velocity: 62 },
+                StepEvent { step: 6, voice: DrumVoice::Snare, velocity: 44 },
+                StepEvent { step: 12, voice: DrumVoice::Snare, velocity: 64 },
+                StepEvent { step: 14, voice: DrumVoice::Snare, velocity: 44 },
+                // Ride cymbal (simulé sur ClosedHat)
+                StepEvent { step: 0, voice: DrumVoice::ClosedHat, velocity: 90 },
+                StepEvent { step: 2, voice: DrumVoice::ClosedHat, velocity: 56 },
+                StepEvent { step: 4, voice: DrumVoice::ClosedHat, velocity: 82 },
+                StepEvent { step: 6, voice: DrumVoice::ClosedHat, velocity: 52 },
+                StepEvent { step: 8, voice: DrumVoice::ClosedHat, velocity: 88 },
+                StepEvent { step: 10, voice: DrumVoice::ClosedHat, velocity: 54 },
+                StepEvent { step: 12, voice: DrumVoice::ClosedHat, velocity: 82 },
+                StepEvent { step: 14, voice: DrumVoice::ClosedHat, velocity: 52 },
+                // Open hat sur le 2 et 4 (Charleston)
+                StepEvent { step: 4, voice: DrumVoice::OpenHat, velocity: 76 },
+                StepEvent { step: 12, voice: DrumVoice::OpenHat, velocity: 76 },
+            ];
+            with_feel("Jazz Ride", style, events, feel)
         }
     }
 }
@@ -323,6 +417,10 @@ pub fn common_beat_patterns() -> Vec<BeatPattern> {
         BeatStyle::FourOnTheFloor,
         BeatStyle::Trap,
         BeatStyle::HalfTime,
+        BeatStyle::Funk,
+        BeatStyle::Shuffle,
+        BeatStyle::Latin,
+        BeatStyle::Jazz,
     ]
     .into_iter()
     .map(|style| beat_pattern(style, default_feel))

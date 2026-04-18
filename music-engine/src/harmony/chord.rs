@@ -73,6 +73,36 @@ pub fn sus4_chord(root: PitchClass) -> Chord {
     Chord::new(root, vec![PERFECT_FOURTH, PERFECT_FIFTH])
 }
 
+/// Accord dominant 7 — root + tierce majeure + quinte + septième mineure
+pub fn dominant7_chord(root: PitchClass) -> Chord {
+    Chord::new(root, vec![MAJOR_THIRD, PERFECT_FIFTH, MINOR_SEVENTH])
+}
+
+/// Accord major 7 — root + tierce majeure + quinte + septième majeure
+pub fn major7_chord(root: PitchClass) -> Chord {
+    Chord::new(root, vec![MAJOR_THIRD, PERFECT_FIFTH, MAJOR_SEVENTH])
+}
+
+/// Accord minor 7 — root + tierce mineure + quinte + septième mineure
+pub fn minor7_chord(root: PitchClass) -> Chord {
+    Chord::new(root, vec![MINOR_THIRD, PERFECT_FIFTH, MINOR_SEVENTH])
+}
+
+/// Accord half-diminished (m7b5) — root + tierce mineure + quinte diminuée + septième mineure
+pub fn minor7b5_chord(root: PitchClass) -> Chord {
+    Chord::new(root, vec![MINOR_THIRD, TRITONE, MINOR_SEVENTH])
+}
+
+/// Accord diminué complet (dim7) — root + tierce mineure + quinte diminuée + septième diminuée
+pub fn diminished7_chord(root: PitchClass) -> Chord {
+    Chord::new(root, vec![MINOR_THIRD, TRITONE, MAJOR_SIXTH])
+}
+
+/// Accord minor-major 7 — root + tierce mineure + quinte + septième majeure
+pub fn minor_major7_chord(root: PitchClass) -> Chord {
+    Chord::new(root, vec![MINOR_THIRD, PERFECT_FIFTH, MAJOR_SEVENTH])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -137,5 +167,41 @@ mod tests {
         assert!(pcs.contains(&c()));
         assert!(pcs.contains(&PitchClass::new(4)));
         assert!(pcs.contains(&PitchClass::new(8)));
+    }
+
+    #[test]
+    fn dominant7_chord_has_4_notes() {
+        assert_eq!(dominant7_chord(c()).note_count(), 4);
+    }
+
+    #[test]
+    fn c_dominant7_pitch_classes_are_c_e_g_bb() {
+        let pcs = dominant7_chord(c()).pitch_classes();
+        assert!(pcs.contains(&c()));
+        assert!(pcs.contains(&PitchClass::new(4)));  // E
+        assert!(pcs.contains(&PitchClass::new(7)));  // G
+        assert!(pcs.contains(&PitchClass::new(10))); // Bb
+    }
+
+    #[test]
+    fn c_major7_pitch_classes_are_c_e_g_b() {
+        let pcs = major7_chord(c()).pitch_classes();
+        assert!(pcs.contains(&PitchClass::new(11))); // B
+    }
+
+    #[test]
+    fn c_minor7b5_has_tritone() {
+        let pcs = minor7b5_chord(c()).pitch_classes();
+        assert!(pcs.contains(&PitchClass::new(6)));  // Gb (tritone)
+        assert!(pcs.contains(&PitchClass::new(10))); // Bb
+    }
+
+    #[test]
+    fn c_diminished7_has_4_notes_symmetrically_spaced() {
+        let pcs = diminished7_chord(c()).pitch_classes();
+        assert_eq!(pcs.len(), 4);
+        assert!(pcs.contains(&PitchClass::new(3)));  // Eb
+        assert!(pcs.contains(&PitchClass::new(6)));  // Gb
+        assert!(pcs.contains(&PitchClass::new(9)));  // A (dim7)
     }
 }
