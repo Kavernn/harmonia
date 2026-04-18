@@ -479,7 +479,19 @@ export function PracticeLivePanel({
               {displayedBpm}
             </span>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>BPM</span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                <span style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>BPM</span>
+                {plan && plan.target_bpm > displayedBpm && (
+                  <span style={{ fontSize: 10, color: "var(--color-accent-primary)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>
+                    → {plan.target_bpm} (+{plan.bpm_step})
+                  </span>
+                )}
+                {plan && displayedBpm >= plan.target_bpm && (
+                  <span style={{ fontSize: 10, color: "var(--color-success)" }}>
+                    ✓ cible atteinte
+                  </span>
+                )}
+              </div>
               <div style={{ display: "flex", gap: 3 }}>
                 {[-5, -1, 1, 5].map((delta) => (
                   <button

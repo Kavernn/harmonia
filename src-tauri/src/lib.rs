@@ -800,6 +800,7 @@ fn fretboard_command(request: FretboardRequest) -> Result<Vec<FretPositionDto>, 
     let max_fret = request.max_fret.unwrap_or(12);
     let positions = fret_positions(&tuning, &solo.chord_tones, &solo.scale_tones, max_fret);
 
+    let chord_root = pc.chord.root;
     Ok(positions
         .into_iter()
         .map(|p| FretPositionDto {
@@ -807,7 +808,7 @@ fn fretboard_command(request: FretboardRequest) -> Result<Vec<FretPositionDto>, 
             fret: p.fret,
             note: p.pitch_class.name().to_string(),
             is_chord_tone: p.is_chord_tone,
-            is_root: false,
+            is_root: p.pitch_class == chord_root,
             is_avoid: false,
             is_characteristic: false,
             is_modal_avoid: false,

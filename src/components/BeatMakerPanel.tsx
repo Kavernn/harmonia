@@ -3,6 +3,7 @@ import { DRUM_VOICES, type BeatPattern } from "../music";
 interface BeatMakerPanelProps {
   beatLibrary: BeatPattern[];
   beatPattern: BeatPattern;
+  beatError: string | null;
   selectedBeatStyle: string;
   beatIntensity: number;
   beatSwing: number;
@@ -21,6 +22,7 @@ interface BeatMakerPanelProps {
 export function BeatMakerPanel({
   beatLibrary,
   beatPattern,
+  beatError,
   selectedBeatStyle,
   beatIntensity,
   beatSwing,
@@ -39,6 +41,19 @@ export function BeatMakerPanel({
 
   return (
     <div>
+      {beatError && (
+        <div style={{
+          padding: "8px 12px",
+          marginBottom: 10,
+          borderRadius: "var(--border-radius-md)",
+          background: "var(--color-danger-soft)",
+          color: "var(--color-danger)",
+          fontSize: 12,
+          border: "0.5px solid var(--color-danger)",
+        }}>
+          {beatError}
+        </div>
+      )}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
         <div style={{ fontSize: 11, fontWeight: 500, color: "var(--color-text-secondary)" }}>
           Beatmaking — {beatPattern.name}

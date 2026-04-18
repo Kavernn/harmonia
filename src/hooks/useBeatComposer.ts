@@ -27,6 +27,7 @@ export function useBeatComposer() {
   const [generatedBeatPattern, setGeneratedBeatPattern] = useState<BeatPattern | null>(null);
   const [beatPattern, setBeatPattern] = useState<BeatPattern | null>(null);
   const [beatPatternDirty, setBeatPatternDirty] = useState(false);
+  const [beatError, setBeatError] = useState<string | null>(null);
 
   useEffect(() => {
     getCommonBeatPatterns().then((patterns) => {
@@ -45,8 +46,12 @@ export function useBeatComposer() {
         setGeneratedBeatPattern(nextPattern);
         setBeatPattern(nextPattern);
         setBeatPatternDirty(false);
+        setBeatError(null);
       })
-      .catch(console.error);
+      .catch((cause) => {
+        console.error(cause);
+        setBeatError("Erreur lors du chargement du beat pattern.");
+      });
   }, [selectedBeatStyle, beatIntensity, beatSwing]);
 
   function cycleBeatStep(voice: string, step: number) {
@@ -86,6 +91,7 @@ export function useBeatComposer() {
   return {
     beatLibrary,
     beatPattern,
+    beatError,
     selectedBeatStyle,
     beatIntensity,
     beatSwing,

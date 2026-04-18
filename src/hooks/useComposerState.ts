@@ -805,6 +805,7 @@ export function useComposerState() {
     beatMakerProps: beatComposer.beatPattern ? {
       beatLibrary: beatComposer.beatLibrary,
       beatPattern: beatComposer.beatPattern,
+      beatError: beatComposer.beatError,
       selectedBeatStyle: beatComposer.selectedBeatStyle,
       beatIntensity: beatComposer.beatIntensity,
       beatSwing: beatComposer.beatSwing,
