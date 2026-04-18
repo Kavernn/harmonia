@@ -3,10 +3,12 @@ import { useAudio } from "./useAudio";
 import { useBeatComposer } from "./useBeatComposer";
 import { useFretboardWindow } from "./useFretboardWindow";
 import { useJamTransport } from "./useJamTransport";
+import { useMicPitch } from "./useMicPitch";
 import { useMidiInput } from "./useMidiInput";
 import { usePersistentState } from "./usePersistentState";
 import { usePracticeEngine } from "./usePracticeEngine";
 import { usePracticePlanner } from "./usePracticePlanner";
+import { useProjectFile } from "./useProjectFile";
 import { useScaleAnalysis } from "./useScaleAnalysis";
 import { buildPhraseGuides } from "../phraseGuide";
 import {
@@ -93,7 +95,11 @@ export function useComposerState() {
     currentProgression: progression,
     tuningSemitones: selectedTuningSemitones,
   });
+  const projectFile = useProjectFile();
   const midiInput = useMidiInput(mainView === "practice");
+  const isMicMode = mainView === "practice" && practicePlanner.plan?.input_mode === "microphone";
+  const micPitch = useMicPitch(isMicMode);
+  const effectiveLastEvent = isMicMode ? micPitch.lastEvent : midiInput.lastEvent;
 
   const fretboardWindow = useFretboardWindow({
     scalePositions,
@@ -224,7 +230,7 @@ export function useComposerState() {
     accompanimentTone,
     strumStyle,
     cueEnabled: practiceCueEnabled,
-    lastMidiEvent: midiInput.lastEvent,
+    lastMidiEvent: effectiveLastEvent,
     audio,
   });
 
@@ -745,6 +751,8 @@ export function useComposerState() {
     isPlaying,
     currentBeat,
     onBpmChange: clampBpm,
+    onSaveProject: projectFile.saveProject,
+    onLoadProject: projectFile.loadProject,
     sidebarProps: {
       tuningPresets: TUNING_PRESETS,
       selectedTuningId,
@@ -847,7 +855,7 @@ export function useComposerState() {
       liveCountInBeat: practiceEngine.countInBeat,
       liveMidiStatus: midiInput.status,
       liveMidiInputs: midiInput.inputs,
-      liveMidiError: midiInput.error ?? practiceEngine.error,
+      liveMidiError: micPitch.error ?? midiInput.error ?? practiceEngine.error,
       liveHeardNote: practiceEngine.heardNote,
       liveLastRepScore: practiceEngine.lastRepScore,
       liveRepHistory: practiceEngine.repHistory,

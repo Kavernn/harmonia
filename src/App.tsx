@@ -29,6 +29,8 @@ export default function App() {
     isPlaying,
     currentBeat,
     onBpmChange,
+    onSaveProject,
+    onLoadProject,
     sidebarProps,
     scaleSuggestionsProps,
     beatMakerProps,
@@ -107,6 +109,38 @@ export default function App() {
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <button
+              onClick={onSaveProject}
+              title="Sauvegarder le projet"
+              style={{
+                border: "0.5px solid var(--color-border-tertiary)",
+                background: "var(--color-background-primary)",
+                color: "var(--color-text-tertiary)",
+                borderRadius: "var(--border-radius-md)",
+                padding: "7px 10px",
+                fontSize: 11,
+                cursor: "pointer",
+                fontWeight: 500,
+              }}
+            >
+              ↓ Sauvegarder
+            </button>
+            <button
+              onClick={onLoadProject}
+              title="Charger un projet"
+              style={{
+                border: "0.5px solid var(--color-border-tertiary)",
+                background: "var(--color-background-primary)",
+                color: "var(--color-text-tertiary)",
+                borderRadius: "var(--border-radius-md)",
+                padding: "7px 10px",
+                fontSize: 11,
+                cursor: "pointer",
+                fontWeight: 500,
+              }}
+            >
+              ↑ Charger
+            </button>
             <button
               onClick={tap}
               title="Tap pour définir le BPM"

@@ -1,3 +1,4 @@
+import { ChordDiagram } from "./ChordDiagram";
 import { Fretboard } from "./Fretboard";
 import {
   ACCOMPANIMENT_TONES,
@@ -742,7 +743,13 @@ export function ProgressionJamPanel({
       {currentStep && scalePositions.length > 0 && (
         <div>
           <div style={{ marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+              <ChordDiagram
+                chordTones={currentChordTones}
+                tuningStrings={selectedTuningStrings}
+                label={currentStep.display_name}
+              />
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <span style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-primary)" }}>
                 {currentStep.display_name} dans {harmonyRootName} {harmonyScaleName}
               </span>
@@ -845,6 +852,7 @@ export function ProgressionJamPanel({
                   </span>
                 </div>
               )}
+            </div>
             </div>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
               <div style={{ display: "flex", gap: 4 }}>

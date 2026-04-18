@@ -56,7 +56,7 @@ export function useScaleAnalysis({
   const [scales, setScales] = useState<ScaleSuggestion[]>([]);
   const [namedProgs, setNamedProgs] = useState<NamedProgression[]>([]);
   const [compatibleModes, setCompatibleModes] = useState<CompatibleMode[]>([]);
-  const [activeSteps, setActiveSteps] = useState<string[]>(defaultProgressionStepsForHarmony("Ionian"));
+  const [activeSteps, setActiveSteps] = usePersistentState<string[]>("harmonia.active-steps", defaultProgressionStepsForHarmony("Ionian"));
   const [progressionStepOptions, setProgressionStepOptions] = useState<ProgressionStepOption[]>(
     fallbackProgressionStepOptionsForHarmony("Ionian"),
   );
